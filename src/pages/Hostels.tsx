@@ -610,6 +610,55 @@ const Hostels = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Hostel Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingHostel(null); setHostelName(""); setHostelLocation(""); setHostelCapacity(""); } }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Edit Hostel</DialogTitle>
+            <DialogDescription>Update the hostel's details.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-hostel-name">Hostel Name *</Label>
+              <Input
+                id="edit-hostel-name"
+                placeholder="e.g., St. Paul's Hostel"
+                value={hostelName}
+                onChange={(e) => setHostelName(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-hostel-location">Location</Label>
+              <Input
+                id="edit-hostel-location"
+                placeholder="e.g., Block A, Campus"
+                value={hostelLocation}
+                onChange={(e) => setHostelLocation(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-hostel-capacity">Capacity</Label>
+              <Input
+                id="edit-hostel-capacity"
+                type="number"
+                placeholder="0"
+                value={hostelCapacity}
+                onChange={(e) => setHostelCapacity(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); setEditingHostel(null); setHostelName(""); setHostelLocation(""); setHostelCapacity(""); }}>
+              Cancel
+            </Button>
+            <Button className="btn-gradient-primary" onClick={handleEditHostel} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

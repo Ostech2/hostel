@@ -82,6 +82,25 @@ const Dashboard = () => {
       />
       
       <div className="p-6 space-y-6">
+        {/* Warden Gender Banner */}
+        {role === "warden" && profile?.gender && (
+          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+            profile.gender === "male"
+              ? "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
+              : "bg-pink-50 border-pink-200 text-pink-800 dark:bg-pink-950/30 dark:border-pink-800 dark:text-pink-300"
+          }`}>
+            <span className="text-xl">{profile.gender === "male" ? "👨" : "👩"}</span>
+            <div>
+              <p className="font-semibold text-sm">
+                {profile.gender === "male" ? "Male Warden" : "Female Warden"} Portal
+              </p>
+              <p className="text-xs opacity-80">
+                Welcome, {profile.full_name}. You are logged in as a {profile.gender === "male" ? "male" : "female"} warden.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="opacity-0 animate-fade-in stagger-1">
