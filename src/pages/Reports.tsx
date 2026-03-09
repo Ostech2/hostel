@@ -411,50 +411,39 @@ const Reports = () => {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Package className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalItems}</p>
-                <p className="text-sm text-muted-foreground">Total Items</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10 text-success">
-                <Building2 className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{activeHostels}</p>
-                <p className="text-sm text-muted-foreground">Active Hostels</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info">
-                <Users className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{allocatedStudents}</p>
-                <p className="text-sm text-muted-foreground">Allocated Students</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 text-warning">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{lowStockCount}</p>
-                <p className="text-sm text-muted-foreground">Low Stock Items</p>
+          {[
+            { label: "Total Items",        value: totalItems,        icon: Package,       color: "bg-primary/10 text-primary",   route: "/inventory" },
+            { label: "Active Hostels",     value: activeHostels,     icon: Building2,     color: "bg-success/10 text-success",   route: "/hostels" },
+            { label: "Allocated Students", value: allocatedStudents, icon: Users,         color: "bg-info/10 text-info",         route: "/allocations" },
+            { label: "Low Stock Items",    value: lowStockCount,     icon: AlertTriangle, color: "bg-warning/10 text-warning",   route: "/inventory" },
+          ].map(({ label, value, icon: Icon, color, route }) => (
+            <div
+              key={label}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(route)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(route); }}
+              className="stat-card cursor-pointer select-none transition-all duration-150 hover:shadow-md hover:border-primary/40 active:scale-[0.97] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{value}</p>
+                    <p className="text-sm text-muted-foreground">{label}</p>
+                  </div>
+                </div>
+                <svg
+                  className="h-4 w-4 text-muted-foreground/40 transition-all duration-150 group-hover:text-primary group-hover:translate-x-1"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             </div>
-          </div>
+          ))}
         </div>
 
         {/* Warden Performance - Admin Only */}
