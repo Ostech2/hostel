@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Edit, Trash2, UserCheck, Loader2, Calendar } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserCheck, Loader2, Calendar, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,6 +97,10 @@ const Allocations = () => {
   const [selectedRoom, setSelectedRoom] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Combobox open states
+  const [studentComboOpen, setStudentComboOpen] = useState(false);
+  const [roomComboOpen, setRoomComboOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -232,6 +249,23 @@ const Allocations = () => {
     return { room: room.room_number, hostel: hostel?.name || "Unknown" };
   };
 
+  // Helper for selected labels in comboboxes
+  const selectedStudentLabel = selectedStudent
+    ? (() => {
+        const s = students.find((s) => s.id === selectedStudent);
+        return s ? `${s.full_name} (${s.student_id})` : "";
+      })()
+    : "";
+
+  const selectedRoomLabel = selectedRoom
+    ? (() => {
+        const r = rooms.find((r) => r.id === selectedRoom);
+        if (!r) return "";
+        const h = hostels.find((h) => h.id === r.hostel_id);
+        return `${h?.name || "Unknown"} - Room ${r.room_number}`;
+      })()
+    : "";
+
   const filteredAllocations = allocations.filter((allocation) => {
     const studentName = getStudentName(allocation.student_id).toLowerCase();
     const studentId = getStudentId(allocation.student_id).toLowerCase();
@@ -358,39 +392,108 @@ const Allocations = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {/* ── Searchable Student Combobox ── */}
                 <div className="grid gap-2">
-                  <Label htmlFor="student">Student *</Label>
-                  <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select student" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students.map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.full_name} ({student.student_id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Student *</Label>
+                  <Popover open={studentComboOpen} onOpenChange={setStudentComboOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={studentComboOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedStudentLabel || "Type to search student..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search by name or ID..." />
+                        <CommandList>
+                          <CommandEmpty>No student found.</CommandEmpty>
+                          <CommandGroup>
+                            {students.map((student) => (
+                              <CommandItem
+                                key={student.id}
+                                value={`${student.full_name} ${student.student_id}`}
+                                onSelect={() => {
+                                  setSelectedStudent(student.id);
+                                  setStudentComboOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedStudent === student.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{student.full_name}</span>
+                                  <span className="text-xs text-muted-foreground">{student.student_id}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
+
+                {/* ── Searchable Room Combobox ── */}
                 <div className="grid gap-2">
-                  <Label htmlFor="room">Room *</Label>
-                  <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select room" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rooms.map((room) => {
-                        const hostel = hostels.find(h => h.id === room.hostel_id);
-                        return (
-                          <SelectItem key={room.id} value={room.id}>
-                            {hostel?.name} - Room {room.room_number}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <Label>Room *</Label>
+                  <Popover open={roomComboOpen} onOpenChange={setRoomComboOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={roomComboOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedRoomLabel || "Type to search room..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search by hostel or room number..." />
+                        <CommandList>
+                          <CommandEmpty>No room found.</CommandEmpty>
+                          <CommandGroup>
+                            {rooms.map((room) => {
+                              const hostel = hostels.find(h => h.id === room.hostel_id);
+                              const label = `${hostel?.name || "Unknown"} - Room ${room.room_number}`;
+                              return (
+                                <CommandItem
+                                  key={room.id}
+                                  value={label}
+                                  onSelect={() => {
+                                    setSelectedRoom(room.id);
+                                    setRoomComboOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedRoom === room.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{hostel?.name || "Unknown"}</span>
+                                    <span className="text-xs text-muted-foreground">Room {room.room_number} · Capacity {room.capacity}</span>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="start-date">Start Date</Label>
