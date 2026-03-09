@@ -95,19 +95,27 @@ const Hostels = () => {
   const [roomFloor, setRoomFloor] = useState("1");
 
   useEffect(() => {
-    fetchHostels();
-    fetchRooms();
-  }, []);
+    if (role) {
+      fetchHostels();
+    }
+  }, [role, user?.id]);
 
   const fetchHostels = async () => {
     try {
-      const { data, error } = await supabase
-        .from("hostels")
-        .select("*")
-        .order("name");
+      let query = supabase.from("hostels").select("*").order("name");
 
+      // Wardens only see their assigned hostels
+      if (role === "warden" && user?.id) {
+        query = query.eq("warden_id", user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setHostels(data || []);
+
+      // Fetch rooms scoped to the returned hostels
+      const hostelIds = (data || []).map((h) => h.id);
+      await fetchRooms(hostelIds);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -119,13 +127,17 @@ const Hostels = () => {
     }
   };
 
-  const fetchRooms = async () => {
+  const fetchRooms = async (hostelIds?: string[]) => {
     try {
-      const { data, error } = await supabase
-        .from("rooms")
-        .select("*")
-        .order("room_number");
-
+      let query = supabase.from("rooms").select("*").order("room_number");
+      if (hostelIds && hostelIds.length > 0) {
+        query = query.in("hostel_id", hostelIds);
+      } else if (hostelIds && hostelIds.length === 0) {
+        // No hostels assigned — no rooms to show
+        setRooms([]);
+        return;
+      }
+      const { data, error } = await query;
       if (error) throw error;
       setRooms(data || []);
     } catch (error: any) {
