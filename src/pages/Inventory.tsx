@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,8 @@ const categoryLabels: Record<string, string> = {
 
 const Inventory = () => {
   const { user, role } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedHostel, setSelectedHostel] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

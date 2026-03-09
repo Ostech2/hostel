@@ -152,7 +152,7 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
                     <div
                       key={item.id}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => { navigate("/inventory"); setOpen(false); }}
+                      onClick={() => { navigate(`/inventory?search=${encodeURIComponent(item.item_name)}`); setOpen(false); }}
                     >
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
                         <Package className="h-4 w-4" />
