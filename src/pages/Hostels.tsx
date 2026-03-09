@@ -243,46 +243,72 @@ const Hostels = () => {
   };
 
   const handleDeleteHostel = async (hostelId: string) => {
-    if (!confirm("Are you sure you want to delete this hostel? All rooms, allocations, and inventory related to this hostel will be deleted, and assigned students will be unassigned.")) return;
+    // 1. Check for students first
+    const { count: studentCount, error: countError } = await supabase
+      .from("profiles")
+      .select("*", { count: 'exact', head: true })
+      .eq("hostel_id", hostelId);
+    
+    if (countError) {
+      console.warn("Could not check student count:", countError);
+    }
 
+    const studentWarning = studentCount && studentCount > 0 
+      ? `\n\nWarning: ${studentCount} students are currently assigned to this hostel and will be unassigned.`
+      : "";
+
+    if (!confirm(`Are you sure you want to delete this hostel? All rooms, allocations, and inventory related to this hostel will be deleted.${studentWarning}`)) return;
+
+    setIsSubmitting(true);
     try {
-      // 1. Unassign students from this hostel
-      await supabase.from("profiles").update({ hostel_id: null, room_number: null }).eq("hostel_id", hostelId);
+      // 2. Unassign students from this hostel
+      const { error: profileError } = await supabase.from("profiles").update({ hostel_id: null, room_number: null }).eq("hostel_id", hostelId);
+      if (profileError) {
+        console.warn("Could not unassign students (possibly RLS):", profileError);
+        // If it failed because of students, the hostel delete will fail anyway with FK error, but we continue to try rooms
+      }
       
-      // 2. Find all rooms in this hostel to delete their allocations
+      // 3. Find and delete all room allocations
       const { data: hostelRooms } = await supabase.from("rooms").select("id").eq("hostel_id", hostelId);
       if (hostelRooms && hostelRooms.length > 0) {
         const roomIds = hostelRooms.map(r => r.id);
-        // Delete room allocations
-        await supabase.from("room_allocations").delete().in("room_id", roomIds);
+        const { error: allocErr } = await supabase.from("room_allocations").delete().in("room_id", roomIds);
+        if (allocErr) throw new Error("Failed to delete room allocations: " + allocErr.message);
       }
 
-      // 3. Delete inventory items for this hostel
-      await supabase.from("inventory").delete().eq("hostel_id", hostelId);
+      // 4. Delete inventory items
+      const { error: invErr } = await supabase.from("inventory").delete().eq("hostel_id", hostelId);
+      if (invErr) throw new Error("Failed to delete inventory: " + invErr.message);
 
-      // 4. Delete the rooms
-      await supabase.from("rooms").delete().eq("hostel_id", hostelId);
+      // 5. Delete the rooms
+      const { error: roomErr } = await supabase.from("rooms").delete().eq("hostel_id", hostelId);
+      if (roomErr) throw new Error("Failed to delete rooms: " + roomErr.message);
 
-      // 5. Finally, delete the hostel itself
+      // 6. Finally, delete the hostel itself
       const { error } = await supabase.from("hostels").delete().eq("id", hostelId);
       
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23503") {
+          throw new Error("Cannot delete hostel: There are still students or records linked to it that couldn't be cleared. Please contact an admin.");
+        }
+        throw new Error(error.message);
+      }
       
-      toast({ title: "Success", description: "Hostel and all related data deleted successfully." });
+      toast({ title: "Success", description: "Hostel deleted successfully." });
       
-      // Instantly remove from UI state
+      // Update UI state
       setHostels(current => current.filter(h => h.id !== hostelId));
-      setRooms(current => current.filter(r => r.hostel_id !== hostelId));
-      
-      // Refetch to ensure sync
       fetchHostels();
       queryClient.invalidateQueries();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete hostel",
+        title: "Deletion Failed",
+        description: error.message || "Could not delete hostel.",
         variant: "destructive",
       });
+      fetchHostels();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
