@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ interface Room {
 const Hostels = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -189,6 +191,7 @@ const Hostels = () => {
       setNumberOfRooms("");
       fetchHostels();
       fetchRooms();
+      queryClient.invalidateQueries();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -227,6 +230,7 @@ const Hostels = () => {
       setRoomCapacity("1");
       setRoomFloor("1");
       fetchHostels(); // re-fetches rooms scoped to warden's hostels
+      queryClient.invalidateQueries();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -272,6 +276,7 @@ const Hostels = () => {
       
       // Refetch to ensure sync
       fetchHostels();
+      queryClient.invalidateQueries();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -312,6 +317,7 @@ const Hostels = () => {
       setHostelLocation("");
       setHostelCapacity("");
       fetchHostels();
+      queryClient.invalidateQueries();
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to update hostel", variant: "destructive" });
     } finally {
