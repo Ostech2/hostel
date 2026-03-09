@@ -239,14 +239,33 @@ const Hostels = () => {
   };
 
   const handleDeleteHostel = async (hostelId: string) => {
-    if (!confirm("Are you sure you want to delete this hostel? All rooms will be deleted.")) return;
+    if (!confirm("Are you sure you want to delete this hostel? All rooms, allocations, and inventory related to this hostel will be deleted, and assigned students will be unassigned.")) return;
 
     try {
+      // 1. Unassign students from this hostel
+      await supabase.from("profiles").update({ hostel_id: null, room_number: null }).eq("hostel_id", hostelId);
+      
+      // 2. Find all rooms in this hostel to delete their allocations
+      const { data: hostelRooms } = await supabase.from("rooms").select("id").eq("hostel_id", hostelId);
+      if (hostelRooms && hostelRooms.length > 0) {
+        const roomIds = hostelRooms.map(r => r.id);
+        // Delete room allocations
+        await supabase.from("room_allocations").delete().in("room_id", roomIds);
+      }
+
+      // 3. Delete inventory items for this hostel
+      await supabase.from("inventory").delete().eq("hostel_id", hostelId);
+
+      // 4. Delete the rooms
+      await supabase.from("rooms").delete().eq("hostel_id", hostelId);
+
+      // 5. Finally, delete the hostel itself
       const { error } = await supabase.from("hostels").delete().eq("id", hostelId);
+      
       if (error) throw error;
-      toast({ title: "Success", description: "Hostel deleted" });
+      
+      toast({ title: "Success", description: "Hostel and all related data deleted successfully." });
       fetchHostels();
-      fetchRooms();
     } catch (error: any) {
       toast({
         title: "Error",
