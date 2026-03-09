@@ -152,9 +152,19 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
             <p className="truncate text-sm font-medium text-sidebar-foreground">
               {profile?.full_name || "User"}
             </p>
-            <Badge variant={getRoleBadgeVariant(role)} className="text-[10px] h-5 capitalize">
-              {role || "Loading..."}
-            </Badge>
+            {role === "warden" ? (
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                profile?.gender === "female"
+                  ? "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300"
+                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+              }`}>
+                {profile?.gender === "female" ? "👩 Female Warden" : "👨 Male Warden"}
+              </span>
+            ) : (
+              <Badge variant={getRoleBadgeVariant(role)} className="text-[10px] h-5 capitalize">
+                {role || "Loading..."}
+              </Badge>
+            )}
           </div>
           <button
             onClick={handleSignOut}
