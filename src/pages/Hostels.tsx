@@ -86,8 +86,8 @@ const Hostels = () => {
   
   // Form states
   const [hostelName, setHostelName] = useState("");
-  const [hostelLocation, setHostelLocation] = useState("");
   const [hostelCapacity, setHostelCapacity] = useState("");
+  const [numberOfRooms, setNumberOfRooms] = useState("");
   
   // Room form
   const [roomNumber, setRoomNumber] = useState("");
@@ -145,21 +145,35 @@ const Hostels = () => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("hostels").insert({
+      const { data, error } = await supabase.from("hostels").insert({
         name: hostelName.trim(),
-        location: hostelLocation.trim() || null,
+        location: null,
         capacity: parseInt(hostelCapacity) || 0,
         warden_id: role === "warden" ? user?.id : null,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Hostel added successfully" });
+      // Auto-create rooms if number specified
+      const roomCount = parseInt(numberOfRooms) || 0;
+      if (roomCount > 0 && data) {
+        const roomInserts = Array.from({ length: roomCount }, (_, i) => ({
+          hostel_id: data.id,
+          room_number: `Room ${i + 1}`,
+          capacity: 1,
+          floor: 1,
+        }));
+        const { error: roomError } = await supabase.from("rooms").insert(roomInserts);
+        if (roomError) console.error("Error creating rooms:", roomError);
+      }
+
+      toast({ title: "Success", description: `Hostel added with ${roomCount} room(s)` });
       setIsAddDialogOpen(false);
       setHostelName("");
-      setHostelLocation("");
       setHostelCapacity("");
+      setNumberOfRooms("");
       fetchHostels();
+      fetchRooms();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -288,15 +302,7 @@ const Hostels = () => {
                     onChange={(e) => setHostelName(e.target.value)}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input 
-                    id="location" 
-                    placeholder="e.g., Block A, Campus"
-                    value={hostelLocation}
-                    onChange={(e) => setHostelLocation(e.target.value)}
-                  />
-                </div>
+                <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="capacity">Capacity</Label>
                   <Input 
@@ -306,6 +312,17 @@ const Hostels = () => {
                     value={hostelCapacity}
                     onChange={(e) => setHostelCapacity(e.target.value)}
                   />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="num-rooms">Number of Rooms</Label>
+                  <Input 
+                    id="num-rooms" 
+                    type="number" 
+                    placeholder="0"
+                    value={numberOfRooms}
+                    onChange={(e) => setNumberOfRooms(e.target.value)}
+                  />
+                </div>
                 </div>
               </div>
               <DialogFooter>
