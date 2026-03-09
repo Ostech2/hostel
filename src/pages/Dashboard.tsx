@@ -1,5 +1,6 @@
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { useNavigate } from "react-router-dom";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { HostelOverview } from "@/components/dashboard/HostelOverview";
@@ -12,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const { profile, role, user } = useAuth();
+  const navigate = useNavigate();
 
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats", role, user?.id],
@@ -89,6 +91,7 @@ const Dashboard = () => {
               change={{ value: "From inventory records", type: "neutral" }}
               icon={Package}
               iconColor="primary"
+              onClick={() => navigate("/inventory")}
             />
           </div>
           <div className="opacity-0 animate-fade-in stagger-2">
@@ -98,6 +101,7 @@ const Dashboard = () => {
               change={{ value: role === "warden" ? "Assigned to you" : "Registered hostels", type: "neutral" }}
               icon={Building2}
               iconColor="info"
+              onClick={() => navigate("/hostels")}
             />
           </div>
           <div className="opacity-0 animate-fade-in stagger-3">
@@ -107,6 +111,7 @@ const Dashboard = () => {
               change={{ value: "Active room allocations", type: "neutral" }}
               icon={Users}
               iconColor="success"
+              onClick={() => navigate("/allocations")}
             />
           </div>
           <div className="opacity-0 animate-fade-in stagger-4">
@@ -116,6 +121,7 @@ const Dashboard = () => {
               change={{ value: "Below minimum stock level", type: stats?.needAttention ? "decrease" : "neutral" }}
               icon={AlertTriangle}
               iconColor="warning"
+              onClick={() => navigate("/inventory")}
             />
           </div>
         </div>
