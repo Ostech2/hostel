@@ -223,6 +223,23 @@ const Students = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!confirm("Are you sure you want to delete this student?")) return;
+
+    try {
+      const { error } = await supabase.from("profiles").delete().eq("id", studentId);
+      if (error) throw error;
+      toast({ title: "Success", description: "Student deleted" });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete student",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getHostelName = (hostelId: string | null) => {
     if (!hostelId) return "Not Assigned";
     const hostel = hostels.find((h) => h.id === hostelId);
@@ -500,6 +517,14 @@ const Students = () => {
                           onClick={() => openEditDialog(student)}
                         >
                           <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDeleteStudent(student.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
