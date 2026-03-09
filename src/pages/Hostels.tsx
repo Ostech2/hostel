@@ -295,34 +295,39 @@ const Hostels = () => {
       console.log(`Deleted ${roomCount} rooms`);
 
       // 6. Finally, delete the hostel itself
+      console.log(`Step 6: Deleting hostel ${hostelId}...`);
       const { error, count } = await supabase
         .from("hostels")
         .delete({ count: 'exact' })
         .eq("id", hostelId);
       
       if (error) {
+        console.error("Hostel delete error:", error);
         if (error.code === "23503") {
-          throw new Error("Cannot delete hostel: There are still students or records linked to it that couldn't be cleared. Please contact an admin.");
+          throw new Error("Cannot delete hostel: There are still students or other records linked to it that couldn't be cleared automatically. Please ensure all students are unallocated first.");
         }
         throw new Error(error.message);
       }
 
       if (count === 0) {
-        throw new Error("Deletion failed: You may not have permission to delete this hostel, or it has already been deleted.");
+        console.error("Hostel delete failed: count was 0");
+        throw new Error("Deletion failed: Security permissions (RLS) in your Supabase database are blocking you from deleting this hostel. Please contact an admin to enable 'DELETE' permissions for Wardens.");
       }
       
-      toast({ title: "Success", description: "Hostel deleted successfully." });
+      toast({ title: "Success", description: "Hostel and all related data deleted successfully." });
       
       // Update UI state
       setHostels(current => current.filter(h => h.id !== hostelId));
       fetchHostels();
       queryClient.invalidateQueries();
     } catch (error: any) {
+      console.error("handleDeleteHostel catch-all:", error);
       toast({
         title: "Deletion Failed",
         description: error.message || "Could not delete hostel.",
         variant: "destructive",
       });
+      // Invalidate so the UI shows the hostel actually still exists
       fetchHostels();
     } finally {
       setIsSubmitting(false);
