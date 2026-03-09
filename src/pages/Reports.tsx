@@ -1,0 +1,451 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { Download, FileText, Printer, Calendar, TrendingUp, Package, Building2, AlertTriangle, Users, FileSpreadsheet } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { WardenPerformance } from "@/components/reports/WardenPerformance";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { startOfWeek, startOfMonth, startOfYear, subMonths, isAfter, parseISO } from "date-fns";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  furniture: "hsl(210, 85%, 35%)",
+  consumables: "hsl(42, 95%, 55%)",
+  electronics: "hsl(142, 72%, 40%)",
+  other: "hsl(200, 98%, 39%)",
+};
+
+const Reports = () => {
+  const [selectedPeriod, setSelectedPeriod] = useState("semester");
+  const { role } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [categoryDistribution, setCategoryDistribution] = useState<{name: string; value: number; color: string}[]>([]);
+  const [hostelInventory, setHostelInventory] = useState<{name: string; items: number; quantity: number}[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [activeHostels, setActiveHostels] = useState(0);
+  const [allocatedStudents, setAllocatedStudents] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [inventoryDetails, setInventoryDetails] = useState<any[]>([]);
+  const [allocationDetails, setAllocationDetails] = useState<any[]>([]);
+
+  const getFilterDate = (period: string): Date => {
+    const now = new Date();
+    switch (period) {
+      case "week": return startOfWeek(now, { weekStartsOn: 1 });
+      case "month": return startOfMonth(now);
+      case "semester": return subMonths(startOfMonth(now), 5);
+      case "year": return startOfYear(now);
+      default: return startOfYear(now);
+    }
+  };
+
+  useEffect(() => {
+    const fetchReportData = async () => {
+      const filterDate = getFilterDate(selectedPeriod);
+      const filterISO = filterDate.toISOString();
+
+      const [inventoryRes, hostelsRes, allocationsRes, roomsRes, studentsRes] = await Promise.all([
+        supabase.from("inventory").select("id, item_name, category, quantity, min_stock_level, hostel_id, unit, created_at").gte("created_at", filterISO),
+        supabase.from("hostels").select("id, name"),
+        supabase.from("room_allocations").select("id, room_id, student_id, start_date, is_active").eq("is_active", true).gte("start_date", filterISO.split("T")[0]),
+        supabase.from("rooms").select("id, hostel_id, room_number"),
+        supabase.from("profiles").select("id, full_name, student_id"),
+      ]);
+
+      const inventory = inventoryRes.data || [];
+      const hostels = hostelsRes.data || [];
+      const allocations = allocationsRes.data || [];
+      const rooms = roomsRes.data || [];
+      const students = studentsRes.data || [];
+
+      setInventoryDetails(inventory.map((i) => ({
+        ...i,
+        hostel_name: hostels.find((h) => h.id === i.hostel_id)?.name || "Unknown",
+      })));
+
+      setAllocationDetails(allocations.map((a) => {
+        const room = rooms.find((r) => r.id === a.room_id);
+        const hostel = room ? hostels.find((h) => h.id === room.hostel_id) : null;
+        const student = students.find((s) => s.id === a.student_id);
+        return {
+          student_name: student?.full_name || "Unknown",
+          student_id_num: student?.student_id || "N/A",
+          room_number: room?.room_number || "N/A",
+          hostel_name: hostel?.name || "Unknown",
+          start_date: a.start_date,
+        };
+      }));
+
+      // Stats
+      let total = 0;
+      inventory.forEach((item) => { total += item.quantity; });
+      setTotalItems(total);
+      setActiveHostels(hostels.length);
+      setAllocatedStudents(allocations.length);
+      setLowStockCount(inventory.filter((i) => i.min_stock_level !== null && i.quantity <= (i.min_stock_level ?? 0)).length);
+
+      // Category distribution
+      const catMap: Record<string, number> = {};
+      inventory.forEach((item) => {
+        catMap[item.category] = (catMap[item.category] || 0) + item.quantity;
+      });
+      setCategoryDistribution(
+        Object.entries(catMap).map(([name, value]) => ({
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          value,
+          color: CATEGORY_COLORS[name] || "hsl(200, 98%, 39%)",
+        }))
+      );
+
+      // Hostel inventory
+      const hostelMap: Record<string, { name: string; items: number; quantity: number }> = {};
+      hostels.forEach((h) => {
+        hostelMap[h.id] = { name: h.name, items: 0, quantity: 0 };
+      });
+      inventory.forEach((item) => {
+        if (hostelMap[item.hostel_id]) {
+          hostelMap[item.hostel_id].items += 1;
+          hostelMap[item.hostel_id].quantity += item.quantity;
+        }
+      });
+      setHostelInventory(Object.values(hostelMap).filter((h) => h.items > 0));
+    };
+    fetchReportData();
+  }, [selectedPeriod]);
+
+  const exportCSV = (reportType: "inventory" | "allocation" | "full") => {
+    let csv = "";
+    const now = new Date().toLocaleDateString();
+
+    if (reportType === "inventory" || reportType === "full") {
+      csv += "INVENTORY REPORT\n";
+      csv += "Item Name,Category,Quantity,Unit,Min Stock,Hostel\n";
+      inventoryDetails.forEach((i: any) => {
+        csv += `"${i.item_name}","${i.category}",${i.quantity},"${i.unit || 'pcs'}","${i.min_stock_level ?? 'N/A'}","${i.hostel_name}"\n`;
+      });
+    }
+
+    if (reportType === "full") csv += "\n";
+
+    if (reportType === "allocation" || reportType === "full") {
+      csv += "ALLOCATION REPORT\n";
+      csv += "Student Name,Student ID,Room,Hostel,Start Date\n";
+      allocationDetails.forEach((a: any) => {
+        csv += `"${a.student_name}","${a.student_id_num}","${a.room_number}","${a.hostel_name}","${a.start_date}"\n`;
+      });
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${reportType}-report-${now}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "CSV Downloaded", description: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report exported as CSV.` });
+  };
+
+  const exportPDF = async (reportType: "inventory" | "allocation" | "full") => {
+    const jsPDFModule = await import("jspdf");
+    const jsPDF = jsPDFModule.default;
+    const autoTableModule = await import("jspdf-autotable");
+    const autoTable = autoTableModule.default;
+
+    const doc = new jsPDF();
+    const now = new Date().toLocaleDateString();
+
+    doc.setFontSize(18);
+    doc.text("UCU Hostel Management System", 14, 20);
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+
+    if (reportType === "inventory" || reportType === "full") {
+      doc.text(`Inventory Report — Generated: ${now}`, 14, 30);
+      autoTable(doc, {
+        startY: 36,
+        head: [["Item Name", "Category", "Quantity", "Unit", "Min Stock", "Hostel"]],
+        body: inventoryDetails.map((i: any) => [
+          i.item_name,
+          i.category,
+          i.quantity,
+          i.unit || "pcs",
+          i.min_stock_level ?? "N/A",
+          i.hostel_name,
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [30, 90, 150] },
+      });
+    }
+
+    if (reportType === "allocation" || reportType === "full") {
+      if (reportType === "full") doc.addPage();
+      const startY = reportType === "full" ? 20 : 36;
+      if (reportType !== "full") {
+        doc.text(`Allocation Report — Generated: ${now}`, 14, 30);
+      } else {
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text("Allocation Report", 14, 14);
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+      }
+      autoTable(doc, {
+        startY,
+        head: [["Student Name", "Student ID", "Room", "Hostel", "Start Date"]],
+        body: allocationDetails.map((a: any) => [
+          a.student_name,
+          a.student_id_num,
+          a.room_number,
+          a.hostel_name,
+          a.start_date,
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [30, 90, 150] },
+      });
+    }
+
+    const filename = reportType === "full" ? "full-report" : `${reportType}-report`;
+    doc.save(`${filename}-${now}.pdf`);
+    toast({ title: "PDF Downloaded", description: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report exported successfully.` });
+  };
+
+  return (
+    <AppLayout>
+      <AppHeader 
+        title="Reports & Analytics" 
+        subtitle="Generate reports and view inventory analytics" 
+      />
+      
+      <div className="p-6 space-y-6">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+          <div className="flex gap-3">
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-[180px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="semester">This Semester</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => exportCSV("full")}>
+              <FileSpreadsheet className="h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button className="btn-gradient-primary gap-2" onClick={() => exportPDF("full")}>
+              <Download className="h-4 w-4" />
+              Export PDF
+            </Button>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="stat-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Package className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalItems}</p>
+                <p className="text-sm text-muted-foreground">Total Items</p>
+              </div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10 text-success">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{activeHostels}</p>
+                <p className="text-sm text-muted-foreground">Active Hostels</p>
+              </div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{allocatedStudents}</p>
+                <p className="text-sm text-muted-foreground">Allocated Students</p>
+              </div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 text-warning">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{lowStockCount}</p>
+                <p className="text-sm text-muted-foreground">Low Stock Items</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Warden Performance - Admin Only */}
+        {role === "admin" && <WardenPerformance />}
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Category Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Inventory by Category</span>
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => exportPDF("inventory")}>
+                  <Download className="h-3 w-3 mr-1" />
+                  Export PDF
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {categoryDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(0, 0%, 100%)',
+                        border: '1px solid hsl(214, 20%, 88%)',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Hostel Inventory Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Inventory by Hostel</span>
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => exportPDF("inventory")}>
+                  <Download className="h-3 w-3 mr-1" />
+                  Export PDF
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hostelInventory} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 20%, 88%)" />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 12 }} />
+                    <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215, 15%, 50%)', fontSize: 12 }} width={70} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(0, 0%, 100%)',
+                        border: '1px solid hsl(214, 20%, 88%)',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="quantity" fill="hsl(210, 85%, 35%)" radius={[0, 4, 4, 0]} name="Total Quantity" />
+                    <Bar dataKey="items" fill="hsl(42, 95%, 55%)" radius={[0, 4, 4, 0]} name="Item Types" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Reports */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Reports (PDF)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { title: "Inventory Summary", desc: "Complete inventory list with details", icon: Package, pdfAction: () => exportPDF("inventory"), csvAction: () => exportCSV("inventory") },
+                { title: "Allocation Report", desc: "All active allocations by hostel", icon: Building2, pdfAction: () => exportPDF("allocation"), csvAction: () => exportCSV("allocation") },
+                { title: "Full Report", desc: "Inventory + allocations combined", icon: FileText, pdfAction: () => exportPDF("full"), csvAction: () => exportCSV("full") },
+                { title: "Low Stock Alert", desc: "Items below minimum stock levels", icon: AlertTriangle, pdfAction: () => exportPDF("inventory"), csvAction: () => exportCSV("inventory") },
+              ].map((report, index) => (
+                <div
+                  key={report.title}
+                  className={cn(
+                    "flex flex-col items-start gap-3 rounded-xl border border-border p-4 text-left transition-all hover:border-primary hover:bg-muted/50 hover:shadow-md opacity-0 animate-fade-in",
+                    `stagger-${index + 1}`
+                  )}
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <report.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{report.title}</p>
+                    <p className="text-sm text-muted-foreground">{report.desc}</p>
+                  </div>
+                  <div className="flex gap-2 w-full">
+                    <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={report.pdfAction}>
+                      <Download className="h-3 w-3" /> PDF
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={report.csvAction}>
+                      <FileSpreadsheet className="h-3 w-3" /> CSV
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+};
+
+export default Reports;

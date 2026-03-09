@@ -1,0 +1,2 @@
+ALTER TABLE public.room_allocations DROP CONSTRAINT IF EXISTS room_allocations_student_id_fkey;
+ALTER TABLE public.room_allocations ADD CONSTRAINT room_allocations_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
