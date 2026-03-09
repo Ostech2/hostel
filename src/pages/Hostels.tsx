@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ interface Room {
 
 const Hostels = () => {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -325,54 +327,39 @@ const Hostels = () => {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{hostels.length}</p>
-                <p className="text-sm text-muted-foreground">Total Hostels</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10 text-info">
-                <Bed className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{rooms.length}</p>
-                <p className="text-sm text-muted-foreground">Total Rooms</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {rooms.reduce((sum, r) => sum + r.capacity, 0)}
-                </p>
-                <p className="text-sm text-muted-foreground">Total Capacity</p>
+          {[
+            { label: "Total Hostels",   value: hostels.length,                                    icon: Building2, color: "bg-primary/10 text-primary",             route: "/hostels" },
+            { label: "Total Rooms",     value: rooms.length,                                      icon: Bed,       color: "bg-info/10 text-info",                   route: "/hostels" },
+            { label: "Total Capacity",  value: rooms.reduce((sum, r) => sum + r.capacity, 0),     icon: Users,     color: "bg-success/10 text-success",             route: "/allocations" },
+            { label: "Hostel Capacity", value: hostels.reduce((sum, h) => sum + h.capacity, 0),   icon: Package,   color: "bg-accent/20 text-accent-foreground",    route: "/inventory" },
+          ].map(({ label, value, icon: Icon, color, route }) => (
+            <div
+              key={label}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(route)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(route); }}
+              className="stat-card cursor-pointer select-none transition-all duration-150 hover:shadow-md hover:border-primary/40 active:scale-[0.97] active:shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{value}</p>
+                    <p className="text-sm text-muted-foreground">{label}</p>
+                  </div>
+                </div>
+                <svg
+                  className="h-4 w-4 text-muted-foreground/40 transition-all duration-150 group-hover:text-primary group-hover:translate-x-1"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/20 text-accent-foreground">
-                <Package className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {hostels.reduce((sum, h) => sum + h.capacity, 0)}
-                </p>
-                <p className="text-sm text-muted-foreground">Hostel Capacity</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Hostels Grid */}
