@@ -265,6 +265,12 @@ const Hostels = () => {
       if (error) throw error;
       
       toast({ title: "Success", description: "Hostel and all related data deleted successfully." });
+      
+      // Instantly remove from UI state
+      setHostels(current => current.filter(h => h.id !== hostelId));
+      setRooms(current => current.filter(r => r.hostel_id !== hostelId));
+      
+      // Refetch to ensure sync
       fetchHostels();
     } catch (error: any) {
       toast({
