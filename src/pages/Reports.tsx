@@ -553,19 +553,29 @@ const Reports = () => {
               ].map((report, index) => (
                 <div
                   key={report.title}
+                  role="button"
+                  tabIndex={0}
+                  onClick={report.pdfAction}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") report.pdfAction(); }}
                   className={cn(
-                    "flex flex-col items-start gap-3 rounded-xl border border-border p-4 text-left transition-all hover:border-primary hover:bg-muted/50 hover:shadow-md opacity-0 animate-fade-in",
+                    "flex flex-col items-start gap-3 rounded-xl border border-border p-4 text-left",
+                    "cursor-pointer select-none",
+                    "transition-all duration-150",
+                    "hover:border-primary hover:bg-muted/50 hover:shadow-md",
+                    "active:scale-[0.97] active:shadow-inner active:bg-primary/5",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                    "opacity-0 animate-fade-in",
                     `stagger-${index + 1}`
                   )}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform group-active:scale-90">
                     <report.icon className="h-5 w-5" />
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{report.title}</p>
                     <p className="text-sm text-muted-foreground">{report.desc}</p>
                   </div>
-                  <div className="flex gap-2 w-full">
+                  <div className="flex gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                     <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={report.pdfAction}>
                       <Download className="h-3 w-3" /> PDF
                     </Button>
