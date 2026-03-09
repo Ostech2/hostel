@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayoutWithMenu as AppLayout } from "@/components/layout/AppLayout";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -12,6 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   PieChart,
   Pie,
   Cell,
@@ -24,7 +33,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Download, FileText, Printer, Calendar, TrendingUp, Package, Building2, AlertTriangle, Users, FileSpreadsheet } from "lucide-react";
+import { Download, FileText, Printer, Calendar, TrendingUp, Package, Building2, AlertTriangle, Users, FileSpreadsheet, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { WardenPerformance } from "@/components/reports/WardenPerformance";
@@ -52,6 +61,14 @@ const Reports = () => {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [inventoryDetails, setInventoryDetails] = useState<any[]>([]);
   const [allocationDetails, setAllocationDetails] = useState<any[]>([]);
+  const [allHostels, setAllHostels] = useState<{id: string; name: string}[]>([]);
+
+  // Print filter dialog state
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printReportType, setPrintReportType] = useState<"inventory" | "allocation" | "both">("both");
+  const [printHostel, setPrintHostel] = useState("all");
+  const [printCategory, setPrintCategory] = useState("all");
+  const printRef = useRef<HTMLDivElement>(null);
 
   const getFilterDate = (period: string): Date => {
     const now = new Date();
@@ -83,6 +100,8 @@ const Reports = () => {
       const rooms = roomsRes.data || [];
       const students = studentsRes.data || [];
 
+      setAllHostels(hostels);
+
       setInventoryDetails(inventory.map((i) => ({
         ...i,
         hostel_name: hostels.find((h) => h.id === i.hostel_id)?.name || "Unknown",
@@ -97,6 +116,7 @@ const Reports = () => {
           student_id_num: student?.student_id || "N/A",
           room_number: room?.room_number || "N/A",
           hostel_name: hostel?.name || "Unknown",
+          hostel_id: room?.hostel_id || null,
           start_date: a.start_date,
         };
       }));
@@ -137,6 +157,121 @@ const Reports = () => {
     };
     fetchReportData();
   }, [selectedPeriod]);
+
+  // Compute filtered data for printing
+  const filteredInventory = inventoryDetails.filter((i) => {
+    const hostelMatch = printHostel === "all" || i.hostel_name === printHostel;
+    const categoryMatch = printCategory === "all" || i.category === printCategory;
+    return hostelMatch && categoryMatch;
+  });
+
+  const filteredAllocations = allocationDetails.filter((a) => {
+    return printHostel === "all" || a.hostel_name === printHostel;
+  });
+
+  const uniqueCategories = Array.from(new Set(inventoryDetails.map((i) => i.category))).filter(Boolean);
+
+  const handlePrint = () => {
+    // Build print content
+    const periodLabel: Record<string, string> = {
+      week: "This Week",
+      month: "This Month",
+      semester: "This Semester",
+      year: "This Year",
+    };
+
+    const hostelLabel = printHostel === "all" ? "All Hostels" : printHostel;
+    const categoryLabel = printCategory === "all" ? "All Categories" : printCategory.charAt(0).toUpperCase() + printCategory.slice(1);
+    const now = new Date().toLocaleString();
+
+    let html = `
+      <html>
+      <head>
+        <title>UCU Hostel Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a2e; }
+          h1 { font-size: 22px; margin-bottom: 4px; }
+          .meta { color: #555; font-size: 13px; margin-bottom: 20px; }
+          .badge { display: inline-block; background: #e8f0fe; color: #1a73e8; border-radius: 4px; padding: 2px 8px; font-size: 12px; margin-right: 6px; }
+          h2 { font-size: 16px; margin-top: 28px; margin-bottom: 8px; border-bottom: 2px solid #1a73e8; padding-bottom: 4px; color: #1a73e8; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+          th { background: #1e5a96; color: white; padding: 8px 10px; text-align: left; }
+          td { padding: 7px 10px; border-bottom: 1px solid #e0e0e0; }
+          tr:nth-child(even) td { background: #f5f8ff; }
+          .low-stock { color: #d32f2f; font-weight: bold; }
+          .footer { margin-top: 30px; font-size: 11px; color: #999; text-align: center; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>UCU Hostel Management System</h1>
+        <div class="meta">
+          Generated: ${now} &nbsp;|&nbsp;
+          Period: <span class="badge">${periodLabel[selectedPeriod] || selectedPeriod}</span>
+          Hostel: <span class="badge">${hostelLabel}</span>
+          ${printReportType !== "allocation" ? `Category: <span class="badge">${categoryLabel}</span>` : ""}
+        </div>
+    `;
+
+    if (printReportType === "inventory" || printReportType === "both") {
+      html += `
+        <h2>Inventory Report</h2>
+        <table>
+          <thead><tr><th>Item Name</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Min Stock</th><th>Hostel</th></tr></thead>
+          <tbody>
+            ${filteredInventory.length === 0
+              ? `<tr><td colspan="6" style="text-align:center;color:#999;">No inventory data matches the selected filters.</td></tr>`
+              : filteredInventory.map((i) => {
+                  const isLow = i.min_stock_level !== null && i.quantity <= (i.min_stock_level ?? 0);
+                  return `<tr>
+                    <td>${i.item_name}</td>
+                    <td>${i.category}</td>
+                    <td class="${isLow ? 'low-stock' : ''}">${i.quantity}${isLow ? ' ⚠' : ''}</td>
+                    <td>${i.unit || 'pcs'}</td>
+                    <td>${i.min_stock_level ?? 'N/A'}</td>
+                    <td>${i.hostel_name}</td>
+                  </tr>`;
+                }).join("")
+            }
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (printReportType === "allocation" || printReportType === "both") {
+      html += `
+        <h2>Allocation Report</h2>
+        <table>
+          <thead><tr><th>Student Name</th><th>Student ID</th><th>Room</th><th>Hostel</th><th>Start Date</th></tr></thead>
+          <tbody>
+            ${filteredAllocations.length === 0
+              ? `<tr><td colspan="5" style="text-align:center;color:#999;">No allocation data matches the selected filters.</td></tr>`
+              : filteredAllocations.map((a) => `<tr>
+                  <td>${a.student_name}</td>
+                  <td>${a.student_id_num}</td>
+                  <td>${a.room_number}</td>
+                  <td>${a.hostel_name}</td>
+                  <td>${a.start_date}</td>
+                </tr>`).join("")
+            }
+          </tbody>
+        </table>
+      `;
+    }
+
+    html += `<div class="footer">UCU Hostel Management System &mdash; Confidential</div></body></html>`;
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); }, 400);
+    }
+
+    setPrintDialogOpen(false);
+    toast({ title: "Print Dialog Opened", description: "Your filtered report is ready to print." });
+  };
 
   const exportCSV = (reportType: "inventory" | "allocation" | "full") => {
     let csv = "";
@@ -259,7 +394,7 @@ const Reports = () => {
             </Select>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+            <Button variant="outline" className="gap-2" onClick={() => setPrintDialogOpen(true)}>
               <Printer className="h-4 w-4" />
               Print
             </Button>
@@ -444,6 +579,95 @@ const Reports = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Print Filter Dialog ── */}
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-primary" />
+              Filter Report for Printing
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Report Type */}
+            <div className="space-y-1.5">
+              <Label htmlFor="print-report-type">Report Type</Label>
+              <Select value={printReportType} onValueChange={(v) => setPrintReportType(v as any)}>
+                <SelectTrigger id="print-report-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="both">Inventory + Allocations</SelectItem>
+                  <SelectItem value="inventory">Inventory Only</SelectItem>
+                  <SelectItem value="allocation">Allocations Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Hostel Filter */}
+            <div className="space-y-1.5">
+              <Label htmlFor="print-hostel">Hostel</Label>
+              <Select value={printHostel} onValueChange={setPrintHostel}>
+                <SelectTrigger id="print-hostel">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Hostels</SelectItem>
+                  {allHostels.map((h) => (
+                    <SelectItem key={h.id} value={h.name}>{h.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category Filter – only for inventory */}
+            {printReportType !== "allocation" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="print-category">Category</Label>
+                <Select value={printCategory} onValueChange={setPrintCategory}>
+                  <SelectTrigger id="print-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {uniqueCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Preview row counts */}
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm space-y-1">
+              {(printReportType === "inventory" || printReportType === "both") && (
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">{filteredInventory.length}</span> inventory item{filteredInventory.length !== 1 ? "s" : ""} will be printed
+                </p>
+              )}
+              {(printReportType === "allocation" || printReportType === "both") && (
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">{filteredAllocations.length}</span> allocation record{filteredAllocations.length !== 1 ? "s" : ""} will be printed
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button className="gap-2 btn-gradient-primary" onClick={handlePrint}>
+              <Printer className="h-4 w-4" />
+              Print Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
