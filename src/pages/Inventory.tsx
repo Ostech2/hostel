@@ -86,6 +86,14 @@ const Inventory = () => {
   const [itemMinStock, setItemMinStock] = useState("5");
   const [itemNotes, setItemNotes] = useState("");
 
+  // Sync search box with URL ?search= param (e.g. from notification click)
+  useEffect(() => {
+    const urlSearch = searchParams.get("search") || "";
+    if (urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     fetchData();
   }, []);
