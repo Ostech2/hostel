@@ -223,7 +223,7 @@ const Hostels = () => {
       setRoomNumber("");
       setRoomCapacity("1");
       setRoomFloor("1");
-      fetchRooms();
+      fetchHostels(); // re-fetches rooms scoped to warden's hostels
     } catch (error: any) {
       toast({
         title: "Error",
