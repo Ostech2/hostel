@@ -306,39 +306,44 @@ const Allocations = () => {
       <div className="p-6 space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <UserCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{allocations.length}</p>
-                <p className="text-sm text-muted-foreground">Total Allocations</p>
+          {[
+            { label: "Total Allocations", value: allocations.length, icon: UserCheck, color: "bg-primary/10 text-primary",               filter: "all" },
+            { label: "Active",            value: activeCount,         icon: UserCheck, color: "bg-success/10 text-success",               filter: "active" },
+            { label: "Inactive",          value: inactiveCount,       icon: UserCheck, color: "bg-muted text-muted-foreground",           filter: "inactive" },
+          ].map(({ label, value, icon: Icon, color, filter }) => (
+            <div
+              key={label}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedStatus(filter)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedStatus(filter); }}
+              className={cn(
+                "stat-card cursor-pointer select-none transition-all duration-150 group",
+                "hover:shadow-md hover:border-primary/40",
+                "active:scale-[0.97] active:shadow-inner",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                selectedStatus === filter && "ring-2 ring-primary border-primary/50 shadow-md"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{value}</p>
+                    <p className="text-sm text-muted-foreground">{label}</p>
+                  </div>
+                </div>
+                <svg
+                  className="h-4 w-4 text-muted-foreground/40 transition-all duration-150 group-hover:text-primary group-hover:translate-x-1"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
-                <UserCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{activeCount}</p>
-                <p className="text-sm text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <UserCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{inactiveCount}</p>
-                <p className="text-sm text-muted-foreground">Inactive</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Toolbar */}
