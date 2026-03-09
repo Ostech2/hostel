@@ -30,7 +30,7 @@ const mainNavItems: NavItem[] = [
   { title: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "warden"] },
   { title: "Hostels", href: "/hostels", icon: Building2, roles: ["admin", "warden"] },
   { title: "Allocations", href: "/allocations", icon: Users, roles: ["admin", "warden"] },
-  { title: "Reports", href: "/reports", icon: FileBarChart, roles: ["admin"] },
+  { title: "Reports", href: "/reports", icon: FileBarChart, roles: ["admin", "warden"] },
 ];
 
 const bottomNavItems: NavItem[] = [
