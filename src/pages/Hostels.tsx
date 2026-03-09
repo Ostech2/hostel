@@ -80,12 +80,15 @@ const Hostels = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
   const [selectedHostel, setSelectedHostel] = useState<Hostel | null>(null);
+  const [editingHostel, setEditingHostel] = useState<Hostel | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form states
   const [hostelName, setHostelName] = useState("");
+  const [hostelLocation, setHostelLocation] = useState("");
   const [hostelCapacity, setHostelCapacity] = useState("");
   const [numberOfRooms, setNumberOfRooms] = useState("");
   
@@ -250,6 +253,44 @@ const Hostels = () => {
         description: error.message || "Failed to delete hostel",
         variant: "destructive",
       });
+    }
+  };
+
+  const openEditHostel = (hostel: Hostel) => {
+    setEditingHostel(hostel);
+    setHostelName(hostel.name);
+    setHostelLocation(hostel.location || "");
+    setHostelCapacity(String(hostel.capacity || ""));
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditHostel = async () => {
+    if (!editingHostel || !hostelName.trim()) {
+      toast({ title: "Error", description: "Hostel name is required", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("hostels")
+        .update({
+          name: hostelName.trim(),
+          location: hostelLocation.trim() || null,
+          capacity: parseInt(hostelCapacity) || 0,
+        })
+        .eq("id", editingHostel.id);
+      if (error) throw error;
+      toast({ title: "Success", description: "Hostel updated successfully" });
+      setIsEditDialogOpen(false);
+      setEditingHostel(null);
+      setHostelName("");
+      setHostelLocation("");
+      setHostelCapacity("");
+      fetchHostels();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update hostel", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -435,6 +476,12 @@ const Hostels = () => {
                           <DoorOpen className="h-4 w-4 mr-2" />
                           Add Room
                         </DropdownMenuItem>
+                        {(role === "admin" || hostel.warden_id === user?.id) && (
+                          <DropdownMenuItem onClick={() => openEditHostel(hostel)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
                         {(role === "admin" || hostel.warden_id === user?.id) && (
                           <DropdownMenuItem 
                             className="text-destructive"
