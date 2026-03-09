@@ -167,6 +167,27 @@ const Allocations = () => {
         return;
       }
 
+      // Check if room is full (max 4 students per room)
+      const MAX_ROOM_CAPACITY = 4;
+      const { data: roomOccupants, error: occError } = await supabase
+        .from("room_allocations")
+        .select("id")
+        .eq("room_id", selectedRoom)
+        .eq("is_active", true);
+
+      if (!occError && roomOccupants && roomOccupants.length >= MAX_ROOM_CAPACITY) {
+        const room = rooms.find(r => r.id === selectedRoom);
+        const hostel = room ? hostels.find(h => h.id === room.hostel_id) : null;
+        const roomLabel = room ? `${hostel?.name || "Unknown"} - Room ${room.room_number}` : "This room";
+        toast({
+          title: "Room Full",
+          description: `${roomLabel} already has ${roomOccupants.length} students (max ${MAX_ROOM_CAPACITY}). Please choose another room.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const { error } = await supabase.from("room_allocations").insert({
         room_id: selectedRoom,
         student_id: selectedStudent,

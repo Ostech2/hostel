@@ -160,7 +160,7 @@ const Hostels = () => {
         const roomInserts = Array.from({ length: roomCount }, (_, i) => ({
           hostel_id: data.id,
           room_number: `Room ${i + 1}`,
-          capacity: 1,
+          capacity: 4,
           floor: 1,
         }));
         const { error: roomError } = await supabase.from("rooms").insert(roomInserts);
