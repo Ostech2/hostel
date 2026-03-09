@@ -277,21 +277,38 @@ const Hostels = () => {
       }
 
       // 4. Delete inventory items
-      const { error: invErr } = await supabase.from("inventory").delete().eq("hostel_id", hostelId);
+      const { error: invErr, count: invCount } = await supabase
+        .from("inventory")
+        .delete({ count: 'exact' })
+        .eq("hostel_id", hostelId);
+      
       if (invErr) throw new Error("Failed to delete inventory: " + invErr.message);
+      console.log(`Deleted ${invCount} inventory items`);
 
       // 5. Delete the rooms
-      const { error: roomErr } = await supabase.from("rooms").delete().eq("hostel_id", hostelId);
+      const { error: roomErr, count: roomCount } = await supabase
+        .from("rooms")
+        .delete({ count: 'exact' })
+        .eq("hostel_id", hostelId);
+      
       if (roomErr) throw new Error("Failed to delete rooms: " + roomErr.message);
+      console.log(`Deleted ${roomCount} rooms`);
 
       // 6. Finally, delete the hostel itself
-      const { error } = await supabase.from("hostels").delete().eq("id", hostelId);
+      const { error, count } = await supabase
+        .from("hostels")
+        .delete({ count: 'exact' })
+        .eq("id", hostelId);
       
       if (error) {
         if (error.code === "23503") {
           throw new Error("Cannot delete hostel: There are still students or records linked to it that couldn't be cleared. Please contact an admin.");
         }
         throw new Error(error.message);
+      }
+
+      if (count === 0) {
+        throw new Error("Deletion failed: You may not have permission to delete this hostel, or it has already been deleted.");
       }
       
       toast({ title: "Success", description: "Hostel deleted successfully." });
