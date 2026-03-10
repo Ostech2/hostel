@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "warden" | "student";
@@ -69,16 +69,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    // Listener for ONGOING auth changes (does NOT control isLoading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event: AuthChangeEvent, session) => {
         if (!isMounted) return;
 
         setSession(session);
         setUser(session?.user ?? null);
 
+        if (event === "PASSWORD_RECOVERY") {
+          // You could potentially handle navigation here, but it's better to let
+          // the URL hash be handled by the router if possible.
+          // However, if the user is being redirected to /, we can force them back.
+          console.log("Password recovery event triggered");
+        }
+
         if (session?.user) {
-          // Fire and forget for ongoing changes - don't await, don't set loading
           fetchUserData(session.user.id);
         } else {
           setProfile(null);
@@ -107,6 +112,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initializeAuth();
+
+    // Check for recovery token if we land on root or other pages
+    const checkRecovery = () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes("type=recovery")) {
+        // If we have a recovery token but are not on the reset page, redirect
+        if (window.location.pathname !== "/reset-password") {
+          console.log("Detected recovery hash on non-reset page, redirecting...");
+          // We don't use navigate() here because we are inside a hook and 
+          // might not have access to the router context yet or might be at a high level.
+          // But actually useAuth is used within AuthProvider which is inside BrowserRouter.
+          // However, simple window.location is safer for the initial load.
+          window.location.href = `${window.location.origin}/reset-password${hash}`;
+        }
+      }
+    };
+
+    checkRecovery();
 
     return () => {
       isMounted = false;
