@@ -118,13 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hash = window.location.hash;
       if (hash && hash.includes("type=recovery")) {
         // If we have a recovery token but are not on the reset page, redirect
-        if (window.location.pathname !== "/reset-password") {
-          console.log("Detected recovery hash on non-reset page, redirecting...");
-          // We don't use navigate() here because we are inside a hook and 
-          // might not have access to the router context yet or might be at a high level.
-          // But actually useAuth is used within AuthProvider which is inside BrowserRouter.
-          // However, simple window.location is safer for the initial load.
-          window.location.href = `${window.location.origin}/reset-password${hash}`;
+        if (window.location.pathname !== "/forgot-password") {
+          console.log("Detected recovery hash on non-forgot-password page, redirecting...");
+          window.location.href = `${window.location.origin}/forgot-password${hash}`;
         }
       }
     };
@@ -145,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: `${window.location.origin}/forgot-password`,
           data: {
             full_name: fullName,
           },
@@ -194,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/forgot-password`,
       });
       if (error) throw error;
       return { error: null };
