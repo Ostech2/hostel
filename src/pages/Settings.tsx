@@ -131,7 +131,7 @@ const Settings = () => {
             role: userRole || "unknown",
           };
         })
-        .filter(u => u.role !== "student");
+        .filter(u => u.role !== "student" && !u.student_id);
 
       setUsers(usersWithRoles);
     } catch (error: any) {
