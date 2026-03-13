@@ -42,6 +42,71 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
+    if (action === "update") {
+      const { user_id, email, full_name, role, gender, phone, student_id } = body;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "user_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update auth email if provided
+      if (email) {
+        const { error: updateError } = await adminClient.auth.admin.updateUserById(user_id, {
+          email,
+          email_confirm: true,
+        });
+        if (updateError) {
+          return new Response(JSON.stringify({ error: updateError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Update profile
+      const updateData: any = {};
+      if (full_name) updateData.full_name = full_name;
+      if (email) updateData.email = email;
+      if (gender !== undefined) updateData.gender = gender;
+      if (phone !== undefined) updateData.phone = phone;
+      if (student_id !== undefined) updateData.student_id = student_id;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: profileError } = await adminClient
+          .from("profiles")
+          .update(updateData)
+          .eq("user_id", user_id);
+
+        if (profileError) {
+          return new Response(JSON.stringify({ error: profileError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Update role if provided
+      if (role) {
+        const { error: roleError } = await adminClient
+          .from("user_roles")
+          .upsert({ user_id, role }, { onConflict: "user_id" });
+
+        if (roleError) {
+          return new Response(JSON.stringify({ error: roleError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (action === "delete") {
       const { user_id } = body;
       if (!user_id) {

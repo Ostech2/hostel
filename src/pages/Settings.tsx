@@ -81,6 +81,7 @@ const Settings = () => {
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [editUserFullName, setEditUserFullName] = useState("");
+  const [editUserEmail, setEditUserEmail] = useState("");
   const [editUserRole, setEditUserRole] = useState<string>("warden");
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
@@ -289,6 +290,7 @@ const Settings = () => {
   const handleEditUser = (user: UserWithRole) => {
     setEditingUser(user);
     setEditUserFullName(user.full_name);
+    setEditUserEmail(user.email);
 
     let initialRole = user.role || "warden";
     if (user.role === "warden" && user.gender) {
@@ -323,26 +325,35 @@ const Settings = () => {
       const newRole = editUserRole === "admin" ? "admin" : "warden";
       const newGender = editUserRole === "male_warden" ? "male" : editUserRole === "female_warden" ? "female" : null;
 
-      // Update profile name and gender using the profile primary key (id)
-      // This is safer than user_id which might be null for some legacy/broken entries
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: editUserFullName.trim(),
-          gender: newGender
-        })
-        .eq("id", editingUser.id);
+      // Update email and profile via Edge Function if email changed or role changed
+      // This is more robust as it handles Auth and Profile together
+      const emailChanged = editUserEmail.trim().toLowerCase() !== editingUser.email.toLowerCase();
 
-      if (profileError) throw profileError;
+      if (emailChanged || newRole !== editingUser.role) {
+        const response = await supabase.functions.invoke("create-user", {
+          body: {
+            action: "update",
+            user_id: editingUser.user_id,
+            email: emailChanged ? editUserEmail.trim().toLowerCase() : undefined,
+            full_name: editUserFullName.trim(),
+            role: newRole,
+            gender: newGender,
+          },
+        });
 
-      // Update role if changed
-      if (newRole !== editingUser.role) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .update({ role: newRole })
-          .eq("user_id", editingUser.user_id);
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
+      } else {
+        // Only update profile if only name or gender changed locally
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: editUserFullName.trim(),
+            gender: newGender
+          })
+          .eq("id", editingUser.id);
 
-        if (roleError) throw roleError;
+        if (profileError) throw profileError;
       }
 
       toast({
@@ -620,13 +631,13 @@ const Settings = () => {
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="edit-email">Email</Label>
+                      <Label htmlFor="edit-email">Email *</Label>
                       <Input
                         id="edit-email"
                         type="email"
-                        value={editingUser?.email || ""}
-                        disabled
-                        className="bg-muted"
+                        value={editUserEmail}
+                        onChange={(e) => setEditUserEmail(e.target.value)}
+                        placeholder="user@example.com"
                       />
                     </div>
                     <div className="grid gap-2">
