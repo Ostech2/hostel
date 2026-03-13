@@ -91,7 +91,7 @@ const Settings = () => {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserFullName, setNewUserFullName] = useState("");
-  const [newUserRole, setNewUserRole] = useState<"admin" | "warden">("warden");
+  const [newUserRole, setNewUserRole] = useState<string>("male_warden");
   const [newUserStudentId, setNewUserStudentId] = useState("");
   const [newUserPhone, setNewUserPhone] = useState("");
   const [newUserGender, setNewUserGender] = useState<"male" | "female" | "">("");
@@ -223,13 +223,16 @@ const Settings = () => {
     try {
       // Create user via edge function (doesn't log admin out)
       const { data: sessionData } = await supabase.auth.getSession();
+      const roleValue = newUserRole === "admin" ? "admin" : "warden";
+      const genderValue = newUserRole === "male_warden" ? "male" : newUserRole === "female_warden" ? "female" : null;
+
       const response = await supabase.functions.invoke("create-user", {
         body: {
           email: newUserEmail,
           password: newUserPassword,
           full_name: newUserFullName,
-          role: newUserRole,
-          gender: newUserRole === "warden" && newUserGender ? newUserGender : null,
+          role: roleValue,
+          gender: genderValue,
           phone: newUserPhone || null,
           student_id: newUserStudentId || null,
         },
@@ -247,7 +250,7 @@ const Settings = () => {
       setNewUserEmail("");
       setNewUserPassword("");
       setNewUserFullName("");
-      setNewUserRole("warden");
+      setNewUserRole("male_warden");
       setNewUserStudentId("");
       setNewUserPhone("");
       setNewUserGender("");
@@ -485,30 +488,17 @@ const Settings = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="new-role">Role *</Label>
-                        <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as any)}>
+                        <Select value={newUserRole} onValueChange={setNewUserRole}>
                           <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="warden">Warden</SelectItem>
+                            <SelectItem value="male_warden">Male Warden</SelectItem>
+                            <SelectItem value="female_warden">Female Warden</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      {newUserRole === "warden" && (
-                        <div className="grid gap-2">
-                          <Label htmlFor="new-gender">Warden Gender *</Label>
-                          <Select value={newUserGender} onValueChange={(v) => setNewUserGender(v as "male" | "female")}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select gender" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="male">Male Warden</SelectItem>
-                              <SelectItem value="female">Female Warden</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
                       <div className="grid gap-2">
                         <Label htmlFor="new-phone">Phone</Label>
                         <Input
