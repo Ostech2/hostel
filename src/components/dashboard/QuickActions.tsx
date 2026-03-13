@@ -34,8 +34,11 @@ export function QuickActions() {
 
     if (role === "admin") {
       return [
-        { label: "View Warden Performance", icon: Users, variant: "primary", href: "/reports" },
-        { label: "Generate Report", icon: Download, variant: "info", href: "/reports" },
+        { label: "Manage Hostels", icon: Building2, variant: "primary", href: "/hostels" },
+        { label: "Manage Students", icon: UserPlus, variant: "info", href: "/students" },
+        { label: "Manage Stock", icon: Package, variant: "secondary", href: "/inventory" },
+        { label: "Warden Performance", icon: Users, variant: "info", href: "/reports" },
+        { label: "Generate Report", icon: Download, variant: "primary", href: "/reports" },
       ];
     }
 

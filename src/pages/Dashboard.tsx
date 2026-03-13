@@ -71,24 +71,26 @@ const Dashboard = () => {
       const wardenType = profile.gender === "male" ? "Male Warden" : "Female Warden";
       return `Welcome back, ${profile?.full_name || "Warden"} (${wardenType})`;
     }
+    if (role === "admin") {
+      return `Welcome back, ${profile?.full_name || "Admin"} (System Administrator)`;
+    }
     return `Welcome back, ${profile?.full_name || "User"}`;
   };
 
   return (
     <AppLayout>
-      <AppHeader 
-        title="Dashboard" 
+      <AppHeader
+        title="Dashboard"
         subtitle={getWelcomeMessage()}
       />
-      
+
       <div className="p-6 space-y-6">
         {/* Warden Gender Banner */}
         {role === "warden" && profile?.gender && (
-          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-            profile.gender === "male"
-              ? "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
-              : "bg-pink-50 border-pink-200 text-pink-800 dark:bg-pink-950/30 dark:border-pink-800 dark:text-pink-300"
-          }`}>
+          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${profile.gender === "male"
+            ? "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
+            : "bg-pink-50 border-pink-200 text-pink-800 dark:bg-pink-950/30 dark:border-pink-800 dark:text-pink-300"
+            }`}>
             <span className="text-xl">{profile.gender === "male" ? "👨" : "👩"}</span>
             <div>
               <p className="font-semibold text-sm">
