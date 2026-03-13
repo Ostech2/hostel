@@ -122,10 +122,15 @@ const Settings = () => {
 
       // Merge profiles with roles and filter out students
       const usersWithRoles = (profiles || [])
-        .map(p => ({
-          ...p,
-          role: roles?.find(r => r.user_id === p.user_id)?.role || "unknown",
-        }))
+        .map(p => {
+          // Find role by user_id first, then fallback to id if they happen to match in some scenarios
+          // (though usually user_id is the link to auth.users)
+          const userRole = roles?.find(r => r.user_id === p.user_id)?.role;
+          return {
+            ...p,
+            role: userRole || "unknown",
+          };
+        })
         .filter(u => u.role !== "student");
 
       setUsers(usersWithRoles);
@@ -318,14 +323,15 @@ const Settings = () => {
       const newRole = editUserRole === "admin" ? "admin" : "warden";
       const newGender = editUserRole === "male_warden" ? "male" : editUserRole === "female_warden" ? "female" : null;
 
-      // Update profile name and gender
+      // Update profile name and gender using the profile primary key (id)
+      // This is safer than user_id which might be null for some legacy/broken entries
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
           full_name: editUserFullName.trim(),
           gender: newGender
         })
-        .eq("user_id", editingUser.user_id);
+        .eq("id", editingUser.id);
 
       if (profileError) throw profileError;
 
@@ -366,36 +372,48 @@ const Settings = () => {
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
+    const deletingProfileId = userToDelete.id;
     const deletingUserId = userToDelete.user_id;
-    setIsDeletingUser(deletingUserId);
+    setIsDeletingUser(deletingProfileId);
 
     // Close dialog and clear state first
     setIsDeleteDialogOpen(false);
     setUserToDelete(null);
 
     try {
-      // Delete user role first
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", deletingUserId);
+      // Delete user role first if we have a user_id
+      if (deletingUserId) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", deletingUserId);
 
-      if (roleError) throw roleError;
+        if (roleError) throw roleError;
+      }
 
-      // Delete profile
-      // Delete user via edge function (fully removes auth account)
-      const response = await supabase.functions.invoke("create-user", {
-        body: {
-          action: "delete",
-          user_id: deletingUserId,
-        },
-      });
+      // Delete user via edge function if we have a user_id (fully removes auth account)
+      if (deletingUserId) {
+        const response = await supabase.functions.invoke("create-user", {
+          body: {
+            action: "delete",
+            user_id: deletingUserId,
+          },
+        });
 
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
+      } else {
+        // Fallback: Delete profile directly if no user_id (unlinked profile)
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .delete()
+          .eq("id", deletingProfileId);
+
+        if (profileError) throw profileError;
+      }
 
       // Remove user from state immediately
-      setUsers(prevUsers => prevUsers.filter(u => u.user_id !== deletingUserId));
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== deletingProfileId));
 
       toast({
         title: "Success",
@@ -565,11 +583,11 @@ const Settings = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => openDeleteDialog(user)}
-                                disabled={isDeletingUser === user.user_id}
+                                disabled={isDeletingUser === user.id}
                                 title="Delete user"
                                 className="text-destructive hover:text-destructive"
                               >
-                                {isDeletingUser === user.user_id ? (
+                                {isDeletingUser === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <Trash2 className="h-4 w-4" />
