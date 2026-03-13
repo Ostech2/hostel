@@ -70,23 +70,23 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  
+
   // Admin user management
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  
+
   // Edit user state
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [editUserFullName, setEditUserFullName] = useState("");
-  const [editUserRole, setEditUserRole] = useState<"admin" | "warden">("warden");
+  const [editUserRole, setEditUserRole] = useState<string>("warden");
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
-  
+
   // New user form
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
@@ -251,7 +251,7 @@ const Settings = () => {
       setNewUserStudentId("");
       setNewUserPhone("");
       setNewUserGender("");
-      
+
       // Wait a moment for trigger to create profile, then refresh
       setTimeout(fetchUsers, 1000);
     } catch (error: any) {
@@ -281,7 +281,13 @@ const Settings = () => {
   const handleEditUser = (user: UserWithRole) => {
     setEditingUser(user);
     setEditUserFullName(user.full_name);
-    setEditUserRole((user.role as "admin" | "warden") || "warden");
+
+    let initialRole = user.role || "warden";
+    if (user.role === "warden" && user.gender) {
+      initialRole = `${user.gender}_warden`;
+    }
+    setEditUserRole(initialRole);
+
     setIsEditUserDialogOpen(true);
   };
 
@@ -295,21 +301,36 @@ const Settings = () => {
       return;
     }
 
+    if (editUserRole === "warden") {
+      toast({
+        title: "Error",
+        description: "Please select a specific warden gender (Male or Female Warden)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUpdatingUser(true);
     try {
-      // Update profile name
+      const newRole = editUserRole === "admin" ? "admin" : "warden";
+      const newGender = editUserRole === "male_warden" ? "male" : editUserRole === "female_warden" ? "female" : null;
+
+      // Update profile name and gender
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ full_name: editUserFullName.trim() })
+        .update({
+          full_name: editUserFullName.trim(),
+          gender: newGender
+        })
         .eq("user_id", editingUser.user_id);
 
       if (profileError) throw profileError;
 
       // Update role if changed
-      if (editUserRole !== editingUser.role) {
+      if (newRole !== editingUser.role) {
         const { error: roleError } = await supabase
           .from("user_roles")
-          .update({ role: editUserRole })
+          .update({ role: newRole })
           .eq("user_id", editingUser.user_id);
 
         if (roleError) throw roleError;
@@ -344,11 +365,11 @@ const Settings = () => {
 
     const deletingUserId = userToDelete.user_id;
     setIsDeletingUser(deletingUserId);
-    
+
     // Close dialog and clear state first
     setIsDeleteDialogOpen(false);
     setUserToDelete(null);
-    
+
     try {
       // Delete user role first
       const { error: roleError } = await supabase
@@ -398,11 +419,11 @@ const Settings = () => {
   };
   return (
     <AppLayout>
-      <AppHeader 
-        title="Settings" 
-        subtitle="Manage your account and system preferences" 
+      <AppHeader
+        title="Settings"
+        subtitle="Manage your account and system preferences"
       />
-      
+
       <div className="p-6 space-y-6 max-w-4xl">
         {/* Admin User Management */}
         {role === "admin" && (
@@ -435,8 +456,8 @@ const Settings = () => {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="new-email">Email *</Label>
-                        <Input 
-                          id="new-email" 
+                        <Input
+                          id="new-email"
                           type="email"
                           placeholder="user@example.com"
                           value={newUserEmail}
@@ -445,8 +466,8 @@ const Settings = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="new-password">Password *</Label>
-                        <Input 
-                          id="new-password" 
+                        <Input
+                          id="new-password"
                           type="password"
                           placeholder="Min 6 characters"
                           value={newUserPassword}
@@ -455,8 +476,8 @@ const Settings = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="new-name">Full Name *</Label>
-                        <Input 
-                          id="new-name" 
+                        <Input
+                          id="new-name"
                           placeholder="John Doe"
                           value={newUserFullName}
                           onChange={(e) => setNewUserFullName(e.target.value)}
@@ -490,8 +511,8 @@ const Settings = () => {
                       )}
                       <div className="grid gap-2">
                         <Label htmlFor="new-phone">Phone</Label>
-                        <Input 
-                          id="new-phone" 
+                        <Input
+                          id="new-phone"
                           placeholder="+256 700 123 456"
                           value={newUserPhone}
                           onChange={(e) => setNewUserPhone(e.target.value)}
@@ -502,7 +523,7 @@ const Settings = () => {
                       <Button variant="outline" onClick={() => setIsAddUserDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleCreateUser}
                         disabled={isCreatingUser}
                       >
@@ -531,7 +552,7 @@ const Settings = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {users.map((user) => (
+                      {users.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.full_name}</TableCell>
                           <TableCell className="text-muted-foreground">{user.email}</TableCell>
@@ -592,8 +613,8 @@ const Settings = () => {
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                       <Label htmlFor="edit-email">Email</Label>
-                      <Input 
-                        id="edit-email" 
+                      <Input
+                        id="edit-email"
                         type="email"
                         value={editingUser?.email || ""}
                         disabled
@@ -602,8 +623,8 @@ const Settings = () => {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-name">Full Name *</Label>
-                      <Input 
-                        id="edit-name" 
+                      <Input
+                        id="edit-name"
                         placeholder="John Doe"
                         value={editUserFullName}
                         onChange={(e) => setEditUserFullName(e.target.value)}
@@ -611,13 +632,14 @@ const Settings = () => {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-role">Role *</Label>
-                      <Select value={editUserRole} onValueChange={(v) => setEditUserRole(v as any)}>
+                      <Select value={editUserRole} onValueChange={setEditUserRole}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select a role" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="warden">Warden</SelectItem>
+                          <SelectItem value="male_warden">Male Warden</SelectItem>
+                          <SelectItem value="female_warden">Female Warden</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -626,7 +648,7 @@ const Settings = () => {
                     <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       onClick={handleUpdateUser}
                       disabled={isUpdatingUser}
                     >
@@ -687,7 +709,7 @@ const Settings = () => {
               </div>
             </div>
             <Separator />
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input id="fullName" defaultValue={profile?.full_name || ""} disabled={role === "warden"} className={role === "warden" ? "bg-muted" : ""} />
@@ -813,10 +835,10 @@ const Settings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
-                <Input 
-                  id="currentPassword" 
-                  type="password" 
-                  placeholder="••••••••" 
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  placeholder="••••••••"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
@@ -824,27 +846,27 @@ const Settings = () => {
               <div></div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
-                <Input 
-                  id="newPassword" 
-                  type="password" 
-                  placeholder="••••••••" 
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="••••••••"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input 
-                  id="confirmPassword" 
-                  type="password" 
-                  placeholder="••••••••" 
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleUpdatePassword}
               disabled={isUpdatingPassword}
             >
