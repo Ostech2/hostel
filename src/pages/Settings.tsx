@@ -85,6 +85,12 @@ const Settings = () => {
   const [editUserRole, setEditUserRole] = useState<string>("warden");
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
+
+  // Profile state
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
 
@@ -102,6 +108,14 @@ const Settings = () => {
       fetchUsers();
     }
   }, [role]);
+
+  useEffect(() => {
+    if (profile) {
+      setProfileName(profile.full_name || "");
+      setProfileEmail(profile.email || "");
+      setProfilePhone(profile.phone || "");
+    }
+  }, [profile]);
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -443,6 +457,60 @@ const Settings = () => {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    if (!profile) return;
+
+    setIsUpdatingProfile(true);
+    try {
+      const emailChanged = profileEmail.trim().toLowerCase() !== profile.email.toLowerCase();
+
+      if (emailChanged && role === "admin") {
+        // Use Edge Function for email updates (requires Admin SDK)
+        const response = await supabase.functions.invoke("create-user", {
+          body: {
+            action: "update",
+            user_id: profile.user_id,
+            email: profileEmail.trim().toLowerCase(),
+            full_name: profileName.trim(),
+            phone: profilePhone.trim() || null,
+          },
+        });
+
+        if (response.error) throw new Error(response.error.message);
+        if (response.data?.error) throw new Error(response.data.error);
+      } else {
+        // Direct profile update for non-email changes or if name changed (only if admin)
+        const updateData: any = {
+          phone: profilePhone.trim() || null,
+        };
+
+        if (role === "admin") {
+          updateData.full_name = profileName.trim();
+        }
+
+        const { error } = await supabase
+          .from("profiles")
+          .update(updateData)
+          .eq("id", profile.id);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully. Please refresh the page to see changes.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
   const getDisplayRole = (user: UserWithRole) => {
     if (user.role === "warden" && user.gender) {
       return user.gender === "male" ? "Male Warden" : "Female Warden";
@@ -731,22 +799,39 @@ const Settings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
-                <Input id="fullName" defaultValue={profile?.full_name || ""} disabled={role === "warden"} className={role === "warden" ? "bg-muted" : ""} />
+                <Input
+                  id="fullName"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  disabled={role !== "admin"}
+                  className={role !== "admin" ? "bg-muted" : ""}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={profile?.email || ""} disabled={role === "warden"} className={role === "warden" ? "bg-muted" : ""} />
-                {role === "warden" && (
+                <Input
+                  id="email"
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  disabled={role !== "admin"}
+                  className={role !== "admin" ? "bg-muted" : ""}
+                />
+                {role !== "admin" && (
                   <p className="text-xs text-muted-foreground">Contact your administrator to update your email</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" defaultValue={role || ""} disabled className="capitalize" />
+                <Input id="role" defaultValue={role || ""} disabled className="capitalize bg-muted" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" defaultValue={profile?.phone || ""} />
+                <Input
+                  id="phone"
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                />
               </div>
             </div>
           </CardContent>
@@ -898,8 +983,12 @@ const Settings = () => {
         {/* Save Button */}
         <div className="flex justify-end gap-3">
           <Button variant="outline">Cancel</Button>
-          <Button className="btn-gradient-primary gap-2">
-            <Save className="h-4 w-4" />
+          <Button
+            className="btn-gradient-primary gap-2"
+            onClick={handleUpdateProfile}
+            disabled={isUpdatingProfile}
+          >
+            {isUpdatingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
           </Button>
         </div>
