@@ -326,7 +326,7 @@ const Students = () => {
       }
 
       toast({ title: "Success", description: "Student deleted" });
-      fetchData();
+      await fetchData();
 
       // Invalidate dashboard and allocation queries to reflect changes
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
