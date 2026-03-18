@@ -1,57 +1,19 @@
-import { Package, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { formatDistanceToNow } from "date-fns";
+import { Trash2, RefreshCw } from "lucide-react";
 
+// The Activity interface now matches the database schema
 interface Activity {
   id: string;
-  type: "added" | "allocated" | "damaged" | "maintained";
+  type: string;
   item: string;
-  location: string;
-  time: string;
-  user: string;
+  location: string | null;
+  created_at: string;
+  user_id?: string | null;
 }
-
-const activities: Activity[] = [
-  {
-    id: "1",
-    type: "added",
-    item: "20 Mattresses",
-    location: "Male Hostel A",
-    time: "2 hours ago",
-    user: "Admin",
-  },
-  {
-    id: "2",
-    type: "allocated",
-    item: "15 Study Chairs",
-    location: "Female Hostel B",
-    time: "4 hours ago",
-    user: "Warden John",
-  },
-  {
-    id: "3",
-    type: "damaged",
-    item: "3 Bed Frames",
-    location: "Male Hostel C",
-    time: "Yesterday",
-    user: "System",
-  },
-  {
-    id: "4",
-    type: "maintained",
-    item: "10 Wardrobes",
-    location: "Female Hostel A",
-    time: "2 days ago",
-    user: "Maintenance",
-  },
-  {
-    id: "5",
-    type: "added",
-    item: "50 Pillows",
-    location: "Storage Room",
-    time: "3 days ago",
-    user: "Admin",
-  },
-];
 
 const typeConfig = {
   added: {
@@ -78,9 +40,38 @@ const typeConfig = {
     textColor: "text-warning",
     label: "Maintained",
   },
+  deleted: {
+    icon: Trash2,
+    bgColor: "bg-destructive/10",
+    textColor: "text-destructive",
+    label: "Deleted",
+  },
+  updated: {
+    icon: RefreshCw,
+    bgColor: "bg-info/10",
+    textColor: "text-info",
+    label: "Updated",
+  },
 };
 
 export function RecentActivity() {
+  const { user } = useAuth();
+
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ["recent-activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data as Activity[];
+    },
+    enabled: !!user,
+  });
+
   return (
     <div className="stat-card h-full">
       <div className="mb-4 flex items-center justify-between">
@@ -88,36 +79,48 @@ export function RecentActivity() {
         <button className="text-sm font-medium text-primary hover:underline">View all</button>
       </div>
       <div className="space-y-4">
-        {activities.map((activity, index) => {
-          const config = typeConfig[activity.type];
-          const Icon = config.icon;
-          return (
-            <div
-              key={activity.id}
-              className={cn(
-                "flex items-start gap-3 opacity-0 animate-fade-in",
-                `stagger-${Math.min(index + 1, 4)}`
-              )}
-            >
-              <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", config.bgColor)}>
-                <Icon className={cn("h-4 w-4", config.textColor)} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground truncate">{activity.item}</span>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", config.bgColor, config.textColor)}>
-                    {config.label}
-                  </span>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading activity...</p>
+        ) : activities.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">No recent activity found.</p>
+        ) : (
+          activities.map((activity, index) => {
+            const config = typeConfig[activity.type as keyof typeof typeConfig] || typeConfig.added;
+            const Icon = config.icon;
+            return (
+              <div
+                key={activity.id}
+                className={cn(
+                  "flex items-start gap-3 opacity-0 animate-fade-in",
+                  `stagger-${Math.min(index + 1, 4)}`
+                )}
+              >
+                <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", config.bgColor)}>
+                  <Icon className={cn("h-4 w-4", config.textColor)} />
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm text-muted-foreground">{activity.location}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-sm text-muted-foreground">{activity.time}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground truncate block">{activity.item}</span>
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0", config.bgColor, config.textColor)}>
+                      {config.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {activity.location && (
+                      <>
+                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">{activity.location}</span>
+                        <span className="text-muted-foreground text-xs">•</span>
+                      </>
+                    )}
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
