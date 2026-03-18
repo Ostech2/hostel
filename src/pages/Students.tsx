@@ -294,19 +294,16 @@ const Students = () => {
     try {
       const student = students.find(s => s.id === studentId);
       
-      // Delete room allocations first to avoid FK constraint violations
-      await supabase
-        .from("room_allocations")
-        .delete()
-        .eq("student_id", studentId);
+      // Delete the student profile and related records via the Edge Function
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          action: "delete_profile",
+          profile_id: studentId,
+        },
+      });
 
-      // Delete the student profile
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", studentId);
-
-      if (error) throw error;
+      if (error) throw new Error("Edge Function error: " + error.message);
+      if (data?.error) throw new Error(data.error);
 
       // Log activity
       if (student) {
