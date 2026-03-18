@@ -294,24 +294,14 @@ const Students = () => {
     try {
       const student = students.find(s => s.id === studentId);
       
-      // Delete room allocations first to avoid FK constraint violations
-      await supabase
-        .from("room_allocations")
-        .delete()
-        .eq("student_id", studentId);
-
-      // Delete the student profile
-      const { error, count } = await supabase
+      // Delete the student profile. Room allocations will be deleted automatically 
+      // by the database (ON DELETE CASCADE).
+      const { error } = await supabase
         .from("profiles")
-        .delete({ count: "exact" })
+        .delete()
         .eq("id", studentId);
 
       if (error) throw error;
-      
-      // Supabase RLS causes silent failure if no policy allows deletion
-      if (count === 0) {
-        throw new Error("Deletion blocked by database security policies (RLS). Ensure your latest migrations are pushed to Supabase.");
-      }
 
       // Log activity
       if (student) {
@@ -325,7 +315,7 @@ const Students = () => {
         if (activityError) console.error("Could not log activity:", activityError);
       }
 
-      toast({ title: "Success", description: "Student deleted" });
+      toast({ title: "Success", description: "Student removed successfully" });
       await fetchData();
 
       // Invalidate dashboard and allocation queries to reflect changes
@@ -335,8 +325,8 @@ const Students = () => {
       queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete student",
+        title: "Deletion Failed",
+        description: error instanceof Error ? error.message : "You might not have permission to delete this record or it is referenced elsewhere.",
         variant: "destructive",
       });
     }
