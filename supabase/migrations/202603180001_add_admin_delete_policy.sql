@@ -1,6 +1,6 @@
--- Allow admins to delete profiles directly
-CREATE POLICY "Admins can delete any profile"
+-- Allow admins and wardens to delete profiles directly
+CREATE POLICY "Admins and wardens can delete profiles"
 ON public.profiles
 FOR DELETE
 TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
+USING (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'warden'));
