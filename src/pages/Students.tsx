@@ -264,11 +264,26 @@ const Students = () => {
     if (!confirm("Are you sure you want to delete this student?")) return;
 
     try {
-      const { error } = await supabase.from("profiles").delete().eq("id", studentId);
+      // Use .select() to verify if the row was actually deleted
+      const { data, error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", studentId)
+        .select();
       
       if (error) {
-        console.error("Delete error:", error);
+        console.error("Delete error details:", error);
         throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn("No rows deleted. This usually means RLS is blocking the deletion.");
+        toast({
+          title: "Deletion Failed",
+          description: "The system could not delete the student record. Please ensure you have run the required SQL command in the Supabase Dashboard.",
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({ title: "Success", description: "Student deleted" });
