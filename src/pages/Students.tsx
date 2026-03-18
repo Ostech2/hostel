@@ -398,7 +398,7 @@ const Students = () => {
                     <Label htmlFor="studentId">Student ID</Label>
                     <Input
                       id="studentId"
-                      placeholder="e.g., STU001"
+                      placeholder="s12/bbuc/bsit/022"
                       value={studentId}
                       onChange={(e) => setStudentId(e.target.value)}
                       maxLength={50}
