@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Student {
   id: string;
@@ -55,6 +56,7 @@ interface Hostel {
 
 const Students = () => {
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHostel, setSelectedHostel] = useState("all");
   const [selectedGender, setSelectedGender] = useState("all");
@@ -176,6 +178,10 @@ const Students = () => {
       setIsAddDialogOpen(false);
       resetForm();
       fetchData();
+
+      // Invalidate dashboard and allocation queries to reflect changes
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -237,6 +243,10 @@ const Students = () => {
       setEditingStudent(null);
       resetForm();
       fetchData();
+
+      // Invalidate dashboard and allocation queries to reflect changes
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -288,6 +298,11 @@ const Students = () => {
 
       toast({ title: "Success", description: "Student deleted" });
       fetchData();
+
+      // Invalidate dashboard and allocation queries to reflect changes
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["hostels-overview"] });
     } catch (error: any) {
       toast({
         title: "Error",
