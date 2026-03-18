@@ -62,7 +62,7 @@ export default function Auth() {
           <p className="font-bold text-lg text-foreground mt-1">Hostel Inventory Management System</p>
         </div>
 
-        <Card className="border-border/50 shadow-xl">
+        <Card className="shadow-xl border-2 border-blue-500"style={{ boxShadow: '0 0 0 2px #3b82f6, 0 20px 40px rgba(59,130,246,0.15)' }}>
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl">Welcome</CardTitle>
             <CardDescription>
