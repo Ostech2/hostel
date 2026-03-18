@@ -301,21 +301,28 @@ const Students = () => {
         .eq("student_id", studentId);
 
       // Delete the student profile
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("profiles")
-        .delete()
+        .delete({ count: "exact" })
         .eq("id", studentId);
 
       if (error) throw error;
+      
+      // Supabase RLS causes silent failure if no policy allows deletion
+      if (count === 0) {
+        throw new Error("Deletion blocked by database security policies (RLS). Ensure your latest migrations are pushed to Supabase.");
+      }
 
       // Log activity
       if (student) {
-        await supabase.from("activities").insert({
+        const { error: activityError } = await supabase.from("activities").insert({
           type: "deleted",
           item: `Student: ${student.full_name}`,
           location: student.hostel_id ? hostels.find(h => h.id === student.hostel_id)?.name : null,
           user_id: user?.id
         });
+        
+        if (activityError) console.error("Could not log activity:", activityError);
       }
 
       toast({ title: "Success", description: "Student deleted" });
