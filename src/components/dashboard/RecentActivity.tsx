@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
-import { Trash2, RefreshCw } from "lucide-react";
+import { Trash2, RefreshCw, Package, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 
 // The Activity interface now matches the database schema
 interface Activity {
