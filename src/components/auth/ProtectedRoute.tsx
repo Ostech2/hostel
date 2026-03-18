@@ -34,14 +34,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   if (allowedRoles) {
     // If role hasn't loaded yet but user is authenticated, show loading
     if (role === null) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Checking permissions...</p>
-          </div>
-        </div>
-      );
+      return <Navigate to="/unauthorized" replace />;
     }
     
     // Role is loaded, check if user has access

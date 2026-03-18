@@ -150,15 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // Assign role to user after signup
-      if (data.user) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: data.user.id, role });
-
-        if (roleError) throw roleError;
-      }
-
       return { error: null };
     } catch (error) {
       return { error: error as Error };
