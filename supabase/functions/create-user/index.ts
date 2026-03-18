@@ -46,6 +46,15 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const body = await req.json();
+
+    // Check if this is a Database Webhook payload
+    if (body.type && body.table) {
+      return new Response(JSON.stringify({ success: true, message: "Webhook ignored" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     const { action } = body;
 
     // Handle delete_profile separately — open to admin and warden roles
