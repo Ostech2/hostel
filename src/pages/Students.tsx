@@ -264,15 +264,12 @@ const Students = () => {
     if (!confirm("Are you sure you want to delete this student?")) return;
 
     try {
-      const response = await supabase.functions.invoke("create-user", {
-        body: {
-          action: "delete_profile",
-          profile_id: studentId,
-        },
-      });
-
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+      const { error } = await supabase.from("profiles").delete().eq("id", studentId);
+      
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
 
       toast({ title: "Success", description: "Student deleted" });
       fetchData();
