@@ -319,7 +319,7 @@ Deno.serve(async (req: Request) => {
 
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role });
+      .upsert({ user_id: newUser.user.id, role }, { onConflict: "user_id" });
 
     if (roleError) {
       return new Response(JSON.stringify({ error: roleError.message }), {
