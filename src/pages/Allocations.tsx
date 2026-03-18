@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Allocation {
   id: string;
@@ -81,6 +82,7 @@ interface Profile {
 
 const Allocations = () => {
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHostel, setSelectedHostel] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -126,7 +128,7 @@ const Allocations = () => {
       // Filter to get only students (those with student_id)
       const studentProfiles = (studentsRes.data || []).filter(p => p.student_id);
       setStudents(studentProfiles);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load allocations",
@@ -206,10 +208,25 @@ const Allocations = () => {
       setStartDate("");
       setEndDate("");
       fetchData();
-    } catch (error: any) {
+
+      // Log activity
+      const student = students.find(s => s.id === selectedStudent);
+      const room = rooms.find(r => r.id === selectedRoom);
+      const hostel = room ? hostels.find(h => h.id === room.hostel_id) : null;
+      
+      await supabase.from("activities").insert({
+        type: "allocated",
+        item: `${student?.full_name || "Student"} allocated to Room ${room?.room_number || "?"}`,
+        location: hostel?.name || null,
+        user_id: user?.id
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create allocation",
+        description: error instanceof Error ? error.message : "Failed to create allocation",
         variant: "destructive",
       });
     } finally {
@@ -227,10 +244,25 @@ const Allocations = () => {
       if (error) throw error;
       toast({ title: "Success", description: "Allocation updated" });
       fetchData();
-    } catch (error: any) {
+
+      // Log activity
+      const student = students.find(s => s.id === allocation.student_id);
+      const room = rooms.find(r => r.id === allocation.room_id);
+      const hostel = room ? hostels.find(h => h.id === room.hostel_id) : null;
+      
+      await supabase.from("activities").insert({
+        type: "maintained",
+        item: `${allocation.is_active ? "Deactivated" : "Activated"} allocation for ${student?.full_name || "Student"}`,
+        location: hostel?.name || null,
+        user_id: user?.id
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update allocation",
+        description: error instanceof Error ? error.message : "Failed to update allocation",
         variant: "destructive",
       });
     }
@@ -244,10 +276,10 @@ const Allocations = () => {
       if (error) throw error;
       toast({ title: "Success", description: "Allocation deleted" });
       fetchData();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete allocation",
+        description: error instanceof Error ? error.message : "Failed to delete allocation",
         variant: "destructive",
       });
     }

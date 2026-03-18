@@ -98,7 +98,7 @@ const Students = () => {
       
       setStudents(studentProfiles);
       setHostels(hostelsRes.data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load students",
@@ -179,13 +179,22 @@ const Students = () => {
       resetForm();
       fetchData();
 
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "added",
+        item: `Student: ${fullName.trim()}`,
+        location: hostelId ? hostels.find(h => h.id === hostelId)?.name : null,
+        user_id: user?.id
+      });
+
       // Invalidate dashboard and allocation queries to reflect changes
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add student",
+        description: error instanceof Error ? error.message : "Failed to add student",
         variant: "destructive",
       });
     } finally {
@@ -244,13 +253,22 @@ const Students = () => {
       resetForm();
       fetchData();
 
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "updated",
+        item: `Student: ${fullName.trim()}`,
+        location: hostelId ? hostels.find(h => h.id === hostelId)?.name : null,
+        user_id: user?.id
+      });
+
       // Invalidate dashboard and allocation queries to reflect changes
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update student",
+        description: error instanceof Error ? error.message : "Failed to update student",
         variant: "destructive",
       });
     } finally {
@@ -274,6 +292,8 @@ const Students = () => {
     if (!confirm("Are you sure you want to delete this student?")) return;
 
     try {
+      const student = students.find(s => s.id === studentId);
+      
       // Use .select() to verify if the row was actually deleted
       const { data, error } = await supabase
         .from("profiles")
@@ -296,6 +316,16 @@ const Students = () => {
         return;
       }
 
+      // Log activity
+      if (student) {
+        await supabase.from("activities").insert({
+          type: "deleted",
+          item: `Student: ${student.full_name}`,
+          location: student.hostel_id ? hostels.find(h => h.id === student.hostel_id)?.name : null,
+          user_id: user?.id
+        });
+      }
+
       toast({ title: "Success", description: "Student deleted" });
       fetchData();
 
@@ -303,10 +333,11 @@ const Students = () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["allocation-stats-overview"] });
       queryClient.invalidateQueries({ queryKey: ["hostels-overview"] });
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete student",
+        description: error instanceof Error ? error.message : "Failed to delete student",
         variant: "destructive",
       });
     }

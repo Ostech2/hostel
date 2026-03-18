@@ -154,7 +154,7 @@ const Settings = () => {
         .filter(u => u.role !== "student" && !u.student_id);
 
       setUsers(usersWithRoles);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
       setIsLoadingUsers(false);
@@ -205,10 +205,10 @@ const Settings = () => {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update password",
+        description: error instanceof Error ? error.message : "Failed to update password",
         variant: "destructive",
       });
     } finally {
@@ -282,10 +282,10 @@ const Settings = () => {
 
       // Wait a moment for trigger to create profile, then refresh
       setTimeout(fetchUsers, 1000);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create user",
+        description: error instanceof Error ? error.message : "Failed to create user",
         variant: "destructive",
       });
     } finally {
@@ -383,10 +383,10 @@ const Settings = () => {
       setIsEditUserDialogOpen(false);
       setEditingUser(null);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update user",
+        description: error instanceof Error ? error.message : "Failed to update user",
         variant: "destructive",
       });
     } finally {
@@ -449,12 +449,12 @@ const Settings = () => {
         title: "Success",
         description: "User deleted successfully",
       });
-    } catch (error: any) {
+    } catch (error) {
       // Refetch to restore state on error
       fetchUsers();
       toast({
         title: "Error",
-        description: error.message || "Failed to delete user",
+        description: error instanceof Error ? error.message : "Failed to delete user",
         variant: "destructive",
       });
     } finally {
@@ -485,7 +485,7 @@ const Settings = () => {
         if (response.data?.error) throw new Error(response.data.error);
       } else {
         // Direct profile update for non-email changes or if name changed (only if admin)
-        const updateData: any = {
+        const updateData: Record<string, string | null> = {
           phone: profilePhone.trim() || null,
         };
 
@@ -505,10 +505,10 @@ const Settings = () => {
         title: "Success",
         description: "Profile updated successfully. Please refresh the page to see changes.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     } finally {

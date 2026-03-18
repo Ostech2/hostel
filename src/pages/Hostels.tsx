@@ -103,6 +103,7 @@ const Hostels = () => {
     if (role) {
       fetchHostels();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, user?.id]);
 
   const fetchHostels = async () => {
@@ -121,7 +122,7 @@ const Hostels = () => {
       // Fetch rooms scoped to the returned hostels
       const hostelIds = (data || []).map((h) => h.id);
       await fetchRooms(hostelIds);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load hostels",
@@ -145,7 +146,7 @@ const Hostels = () => {
       const { data, error } = await query;
       if (error) throw error;
       setRooms(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching rooms:", error);
     }
   };
@@ -192,10 +193,17 @@ const Hostels = () => {
       fetchHostels();
       fetchRooms();
       queryClient.invalidateQueries();
-    } catch (error: any) {
+
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "added",
+        item: `Hostel: ${hostelName.trim()} with ${roomCount} room(s)`,
+        user_id: user?.id
+      });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add hostel",
+        description: error instanceof Error ? error.message : "Failed to add hostel",
         variant: "destructive",
       });
     } finally {
@@ -231,10 +239,17 @@ const Hostels = () => {
       setRoomFloor("1");
       fetchHostels(); // re-fetches rooms scoped to warden's hostels
       queryClient.invalidateQueries();
-    } catch (error: any) {
+
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "added",
+        item: `Room ${roomNumber.trim()} added to ${selectedHostel.name}`,
+        user_id: user?.id
+      });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add room",
+        description: error instanceof Error ? error.message : "Failed to add room",
         variant: "destructive",
       });
     } finally {
@@ -315,16 +330,24 @@ const Hostels = () => {
       }
       
       toast({ title: "Success", description: "Hostel and all related data deleted successfully." });
+
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "deleted",
+        item: `Hostel: (ID ${hostelId}) and all related data`,
+        user_id: user?.id
+      });
       
       // Update UI state
       setHostels(current => current.filter(h => h.id !== hostelId));
       fetchHostels();
       queryClient.invalidateQueries();
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       console.error("handleDeleteHostel catch-all:", error);
       toast({
         title: "Deletion Failed",
-        description: error.message || "Could not delete hostel.",
+        description: error instanceof Error ? error.message : "Could not delete hostel.",
         variant: "destructive",
       });
       // Invalidate so the UI shows the hostel actually still exists
@@ -366,8 +389,8 @@ const Hostels = () => {
       setHostelCapacity("");
       fetchHostels();
       queryClient.invalidateQueries();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update hostel", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to update hostel", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

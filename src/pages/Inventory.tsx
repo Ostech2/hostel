@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface InventoryItem {
   id: string;
@@ -65,6 +66,7 @@ const categoryLabels: Record<string, string> = {
 
 const Inventory = () => {
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -92,7 +94,7 @@ const Inventory = () => {
     if (urlSearch !== searchQuery) {
       setSearchQuery(urlSearch);
     }
-  }, [searchParams]);
+  }, [searchParams, searchQuery]);
 
   useEffect(() => {
     fetchData();
@@ -110,7 +112,7 @@ const Inventory = () => {
 
       setInventory(inventoryRes.data || []);
       setHostels(hostelsRes.data || []);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load inventory",
@@ -160,10 +162,20 @@ const Inventory = () => {
       setIsAddDialogOpen(false);
       resetForm();
       fetchData();
-    } catch (error: any) {
+
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "added",
+        item: `${itemQuantity || "0"} ${itemUnit || "items"} of ${itemName.trim()}`,
+        location: hostels.find(h => h.id === itemHostel)?.name || null,
+        user_id: user?.id
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to add item",
+        description: error instanceof Error ? error.message : "Failed to add item",
         variant: "destructive",
       });
     } finally {
@@ -197,15 +209,21 @@ const Inventory = () => {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Item updated successfully" });
-      setIsEditDialogOpen(false);
-      setEditingItem(null);
-      resetForm();
       fetchData();
-    } catch (error: any) {
+
+      // Log activity
+      await supabase.from("activities").insert({
+        type: "updated",
+        item: `Inventory: ${itemName.trim()}`,
+        location: hostels.find(h => h.id === editingItem.hostel_id)?.name || null,
+        user_id: user?.id
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update item",
+        description: error instanceof Error ? error.message : "Failed to update item",
         variant: "destructive",
       });
     } finally {
@@ -217,14 +235,27 @@ const Inventory = () => {
     if (!confirm("Are you sure you want to delete this item?")) return;
 
     try {
+      const item = inventory.find(i => i.id === itemId);
       const { error } = await supabase.from("inventory").delete().eq("id", itemId);
       if (error) throw error;
+      
+      // Log activity
+      if (item) {
+        await supabase.from("activities").insert({
+          type: "deleted",
+          item: `Inventory: ${item.item_name}`,
+          location: hostels.find(h => h.id === item.hostel_id)?.name || null,
+          user_id: user?.id
+        });
+      }
+
       toast({ title: "Success", description: "Item deleted" });
       fetchData();
-    } catch (error: any) {
+      queryClient.invalidateQueries({ queryKey: ["recent-activities"] });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete item",
+        description: error instanceof Error ? error.message : "Failed to delete item",
         variant: "destructive",
       });
     }

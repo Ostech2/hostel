@@ -48,6 +48,27 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "hsl(200, 98%, 39%)",
 };
 
+type InventoryDetail = {
+  id: string;
+  item_name: string;
+  category: string;
+  quantity: number;
+  min_stock_level: number | null;
+  hostel_id: string;
+  unit: string | null;
+  created_at: string;
+  hostel_name: string;
+};
+
+type AllocationDetail = {
+  student_name: string;
+  student_id_num: string;
+  room_number: string;
+  hostel_name: string;
+  hostel_id: string | null;
+  start_date: string;
+};
+
 const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("semester");
   const { role } = useAuth();
@@ -59,8 +80,8 @@ const Reports = () => {
   const [activeHostels, setActiveHostels] = useState(0);
   const [allocatedStudents, setAllocatedStudents] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
-  const [inventoryDetails, setInventoryDetails] = useState<any[]>([]);
-  const [allocationDetails, setAllocationDetails] = useState<any[]>([]);
+  const [inventoryDetails, setInventoryDetails] = useState<InventoryDetail[]>([]);
+  const [allocationDetails, setAllocationDetails] = useState<AllocationDetail[]>([]);
   const [allHostels, setAllHostels] = useState<{id: string; name: string}[]>([]);
 
   // Print filter dialog state
@@ -280,7 +301,7 @@ const Reports = () => {
     if (reportType === "inventory" || reportType === "full") {
       csv += "INVENTORY REPORT\n";
       csv += "Item Name,Category,Quantity,Unit,Min Stock,Hostel\n";
-      inventoryDetails.forEach((i: any) => {
+      inventoryDetails.forEach((i: InventoryDetail) => {
         csv += `"${i.item_name}","${i.category}",${i.quantity},"${i.unit || 'pcs'}","${i.min_stock_level ?? 'N/A'}","${i.hostel_name}"\n`;
       });
     }
@@ -290,7 +311,7 @@ const Reports = () => {
     if (reportType === "allocation" || reportType === "full") {
       csv += "ALLOCATION REPORT\n";
       csv += "Student Name,Student ID,Room,Hostel,Start Date\n";
-      allocationDetails.forEach((a: any) => {
+      allocationDetails.forEach((a: AllocationDetail) => {
         csv += `"${a.student_name}","${a.student_id_num}","${a.room_number}","${a.hostel_name}","${a.start_date}"\n`;
       });
     }
@@ -324,7 +345,7 @@ const Reports = () => {
       autoTable(doc, {
         startY: 36,
         head: [["Item Name", "Category", "Quantity", "Unit", "Min Stock", "Hostel"]],
-        body: inventoryDetails.map((i: any) => [
+        body: inventoryDetails.map((i: InventoryDetail) => [
           i.item_name,
           i.category,
           i.quantity,
@@ -352,7 +373,7 @@ const Reports = () => {
       autoTable(doc, {
         startY,
         head: [["Student Name", "Student ID", "Room", "Hostel", "Start Date"]],
-        body: allocationDetails.map((a: any) => [
+        body: allocationDetails.map((a: AllocationDetail) => [
           a.student_name,
           a.student_id_num,
           a.room_number,
@@ -593,7 +614,7 @@ const Reports = () => {
             {/* Report Type */}
             <div className="space-y-1.5">
               <Label htmlFor="print-report-type">Report Type</Label>
-              <Select value={printReportType} onValueChange={(v) => setPrintReportType(v as any)}>
+              <Select value={printReportType} onValueChange={(v) => setPrintReportType(v as "inventory" | "allocation" | "both")}>
                 <SelectTrigger id="print-report-type">
                   <SelectValue />
                 </SelectTrigger>

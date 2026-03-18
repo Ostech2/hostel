@@ -30,7 +30,7 @@ const Dashboard = () => {
 
       let inventoryQuery = supabase.from("inventory").select("quantity, min_stock_level, hostel_id");
       let hostelsQuery = supabase.from("hostels").select("id");
-      let allocationsQuery = supabase.from("room_allocations").select("id, room_id").eq("is_active", true);
+      const allocationsQuery = supabase.from("room_allocations").select("id, room_id").eq("is_active", true);
 
       if (hostelIds !== null) {
         inventoryQuery = inventoryQuery.in("hostel_id", hostelIds);
@@ -50,15 +50,15 @@ const Dashboard = () => {
       // Filter allocations to only rooms in warden's hostels
       let filteredAllocations = allocations;
       if (hostelIds !== null) {
-        const hostelRoomIds = rooms.filter((r: any) => hostelIds!.includes(r.hostel_id)).map((r: any) => r.id);
-        filteredAllocations = allocations.filter((a: any) => hostelRoomIds.includes(a.room_id));
+        const hostelRoomIds = rooms.filter((r: { hostel_id: string }) => hostelIds!.includes(r.hostel_id)).map((r: { id: string }) => r.id);
+        filteredAllocations = allocations.filter((a: { room_id: string }) => hostelRoomIds.includes(a.room_id));
       }
 
-      const totalItems = (inventoryRes.data || []).reduce((sum: number, i: any) => sum + i.quantity, 0);
+      const totalItems = (inventoryRes.data || []).reduce((sum: number, i: { quantity: number }) => sum + i.quantity, 0);
       const activeHostels = (hostelsRes.data || []).length;
       const allocatedStudents = filteredAllocations.length;
       const needAttention = (inventoryRes.data || []).filter(
-        (i: any) => i.min_stock_level !== null && i.quantity <= i.min_stock_level
+        (i: { min_stock_level: number | null, quantity: number }) => i.min_stock_level !== null && i.quantity <= i.min_stock_level
       ).length;
 
       return { totalItems, activeHostels, allocatedStudents, needAttention };
