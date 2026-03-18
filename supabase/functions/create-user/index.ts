@@ -87,7 +87,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Update profile
-      const updateData: { [key: string]: any } = {};
+      const updateData: Record<string, unknown> = {};
       if (full_name) updateData.full_name = full_name;
       if (email) updateData.email = email;
       if (gender !== undefined) updateData.gender = gender;
