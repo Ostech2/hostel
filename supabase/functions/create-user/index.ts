@@ -1,6 +1,8 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;
 
 const corsHeaders = {
@@ -35,7 +37,7 @@ async function verifyAdmin(req: Request) {
   return { adminClient, callerUser };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -69,7 +71,7 @@ Deno.serve(async (req) => {
       }
 
       // Update profile
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (full_name) updateData.full_name = full_name;
       if (email) updateData.email = email;
       if (gender !== undefined) updateData.gender = gender;
@@ -188,8 +190,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ user: { id: newUser.user.id, email: newUser.user.email } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Internal Server Error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
