@@ -165,7 +165,13 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Delete the profile (cascading room_allocations)
+      // Delete room allocations first to avoid foreign key violations
+      await adminClient
+        .from("room_allocations")
+        .delete()
+        .eq("student_id", profile_id);
+
+      // Delete the profile
       const { error: deleteError } = await adminClient
         .from("profiles")
         .delete()
