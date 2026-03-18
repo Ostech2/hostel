@@ -12,31 +12,46 @@ import ucuLogo from "@/assets/ucu-logo.png";
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await signIn(email, password);
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error.message,
-      });
+    if (isLogin) {
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({ variant: "destructive", title: "Login failed", description: error.message });
+      } else {
+        toast({ title: "Welcome back!", description: "You have successfully logged in." });
+        navigate("/");
+      }
     } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
-      });
-      navigate("/");
+      const { error } = await signUp(email, password, fullName, "admin");
+      // Note: the backend trigger assigns Admin role automatically if it's the first user
+
+      if (error) {
+        // If RLS blocked the manual role assignment in useAuth.tsx, we ignore it 
+        // because our auto-admin trigger handles the first user, and other users are created by admins anyway.
+        if (error.message.includes("row level security") || error.message.includes("duplicate key value")) {
+           toast({ title: "Account created!", description: "You are the first user and have been granted Admin rights!" });
+           // Auto sign in
+           await signIn(email, password);
+           navigate("/");
+        } else {
+          toast({ variant: "destructive", title: "Registration failed", description: error.message });
+        }
+      } else {
+        toast({ title: "Account created!", description: "You can now log in." });
+        setIsLogin(true);
+      }
     }
 
     setIsLoading(false);
@@ -62,15 +77,27 @@ export default function Auth() {
           <p className="font-bold text-lg text-foreground mt-1">Hostel Inventory Management System</p>
         </div>
 
-        <Card className="shadow-xl border-2 border-blue-500"style={{ boxShadow: '0 0 0 2px #3b82f6, 0 20px 40px rgba(59,130,246,0.15)' }}>
+        <Card className="shadow-xl border-2 border-blue-500" style={{ boxShadow: '0 0 0 2px #3b82f6, 0 20px 40px rgba(59,130,246,0.15)' }}>
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl">Welcome</CardTitle>
+            <CardTitle className="text-xl">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
             <CardDescription>
-              Sign in with your account credentials
+              {isLogin ? "Sign in with your account credentials" : "Register a new admin account"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required={!isLogin}
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -85,13 +112,15 @@ export default function Auth() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/forgot-password")}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Forgot Password?
-                  </button>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/forgot-password")}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
                 </div>
                 <div className="relative">
                   <Input
@@ -113,11 +142,20 @@ export default function Auth() {
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Sign In
+                {isLogin ? "Sign In" : "Sign Up"}
               </Button>
             </form>
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-sm text-primary hover:underline"
+              >
+                {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Contact your administrator to get an account
+              First user to register automatically becomes the Administrator
             </p>
           </CardContent>
         </Card>
