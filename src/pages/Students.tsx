@@ -54,7 +54,7 @@ interface Hostel {
 }
 
 const Students = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHostel, setSelectedHostel] = useState("all");
   const [selectedGender, setSelectedGender] = useState("all");
@@ -264,8 +264,16 @@ const Students = () => {
     if (!confirm("Are you sure you want to delete this student?")) return;
 
     try {
-      const { error } = await supabase.from("profiles").delete().eq("id", studentId);
-      if (error) throw error;
+      const response = await supabase.functions.invoke("create-user", {
+        body: {
+          action: "delete_profile",
+          profile_id: studentId,
+        },
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+
       toast({ title: "Success", description: "Student deleted" });
       fetchData();
     } catch (error: any) {
@@ -555,14 +563,16 @@ const Students = () => {
                         >
                           <Edit className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDeleteStudent(student.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {role === "admin" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDeleteStudent(student.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

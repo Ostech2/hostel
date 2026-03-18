@@ -156,6 +156,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (action === "delete_profile") {
+      const { profile_id } = body;
+      if (!profile_id) {
+        return new Response(JSON.stringify({ error: "profile_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Delete the profile (cascading room_allocations)
+      const { error: deleteError } = await adminClient
+        .from("profiles")
+        .delete()
+        .eq("id", profile_id);
+
+      if (deleteError) {
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Default: create user
     const { email, password, full_name, role, gender, phone, student_id } = body;
 
