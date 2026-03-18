@@ -171,6 +171,16 @@ Deno.serve(async (req: Request) => {
         .delete()
         .eq("student_id", profile_id);
 
+      // Also try to delete from user_roles and activities just in case
+      await adminClient.from("user_roles").delete().eq("user_id", profile_id);
+      
+      // Attempt to delete from activities (if the table exists in the DB)
+      try {
+        await adminClient.from("activities").delete().eq("user_id", profile_id);
+      } catch (e) {
+        // Silently ignore if activities table doesn't exist or doesn't have user_id
+      }
+
       // Delete the profile
       const { error: deleteError } = await adminClient
         .from("profiles")
@@ -179,7 +189,7 @@ Deno.serve(async (req: Request) => {
 
       if (deleteError) {
         return new Response(JSON.stringify({ error: deleteError.message }), {
-          status: 500,
+          status: 200, // Return 200 so the frontend can easily read the data.error
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
