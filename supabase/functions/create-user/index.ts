@@ -70,6 +70,22 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      if (student_id) {
+        const { data: existingProfile } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .eq("student_id", student_id)
+          .neq("user_id", user_id)
+          .maybeSingle();
+
+        if (existingProfile) {
+          return new Response(JSON.stringify({ error: "Student ID is already registered to another user" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       // Update profile
       const updateData: Record<string, unknown> = {};
       if (full_name) updateData.full_name = full_name;
@@ -148,6 +164,21 @@ Deno.serve(async (req: Request) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (student_id) {
+      const { data: existingProfile } = await adminClient
+        .from("profiles")
+        .select("user_id")
+        .eq("student_id", student_id)
+        .maybeSingle();
+
+      if (existingProfile) {
+        return new Response(JSON.stringify({ error: "Student ID is already registered to another user" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
