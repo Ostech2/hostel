@@ -359,7 +359,7 @@ const Students = () => {
 
   return (
     <AppLayout>
-      <AppHeader title="Student Management" subtitle="Register and manage student records" />
+      <AppHeader title="Student Management (v2)" subtitle="Register and manage student records" />
 
       <div className="p-6 space-y-6">
         {/* Toolbar */}
