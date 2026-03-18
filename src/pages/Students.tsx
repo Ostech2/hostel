@@ -314,7 +314,7 @@ const Students = () => {
         });
       }
 
-      toast({ title: "Success", description: "Student deleted" });
+      toast({ title: "Success", description: "Student deleted (v2)" });
       fetchData();
 
       // Invalidate dashboard and allocation queries to reflect changes
