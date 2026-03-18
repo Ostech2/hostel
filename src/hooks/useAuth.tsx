@@ -68,29 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session) => {
-        if (!isMounted) return;
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (event === "PASSWORD_RECOVERY") {
-          // You could potentially handle navigation here, but it's better to let
-          // the URL hash be handled by the router if possible.
-          // However, if the user is being redirected to /, we can force them back.
-          console.log("Password recovery event triggered");
-        }
-
-        if (session?.user) {
-          fetchUserData(session.user.id);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-      }
-    );
+    let authListenerUnsubscribe: (() => void) | undefined;
 
     // INITIAL load (controls isLoading)
     const initializeAuth = async () => {
@@ -105,6 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           await fetchUserData(session.user.id);
         }
+        
+        // Setup listener AFTER initial fetch to avoid race conditions
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event: AuthChangeEvent, newSession) => {
+            if (!isMounted) return;
+
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+
+            if (newSession?.user) {
+              await fetchUserData(newSession.user.id);
+            } else {
+              setProfile(null);
+              setRole(null);
+            }
+          }
+        );
+        authListenerUnsubscribe = () => subscription.unsubscribe();
+
       } finally {
         // Only set loading to false after all initial checks are done
         if (isMounted) setIsLoading(false);
@@ -129,7 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      if (authListenerUnsubscribe) {
+        authListenerUnsubscribe();
+      }
     };
   }, []);
 
