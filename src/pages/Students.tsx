@@ -294,15 +294,19 @@ const Students = () => {
     try {
       const student = students.find(s => s.id === studentId);
       
-      const response = await supabase.functions.invoke("create-user", {
-        body: {
-          action: "delete_profile",
-          profile_id: studentId,
-        },
-      });
+      // Delete room allocations first to avoid FK constraint violations
+      await supabase
+        .from("room_allocations")
+        .delete()
+        .eq("student_id", studentId);
 
-      if (response.error) throw new Error(response.error.message);
-      if (response.data?.error) throw new Error(response.data.error);
+      // Delete the student profile
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", studentId);
+
+      if (error) throw error;
 
       // Log activity
       if (student) {
@@ -314,7 +318,7 @@ const Students = () => {
         });
       }
 
-      toast({ title: "Success", description: "Student deleted (v2)" });
+      toast({ title: "Success", description: "Student deleted" });
       fetchData();
 
       // Invalidate dashboard and allocation queries to reflect changes
@@ -359,7 +363,7 @@ const Students = () => {
 
   return (
     <AppLayout>
-      <AppHeader title="Student Management (v2)" subtitle="Register and manage student records" />
+      <AppHeader title="Student Management" subtitle="Register and manage student records" />
 
       <div className="p-6 space-y-6">
         {/* Toolbar */}
