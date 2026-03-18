@@ -99,9 +99,10 @@ export default function ForgotPassword() {
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
                 backgroundColor: 'hsl(var(--background))',
+                filter: 'brightness(1.1) contrast(1.05)',
             }}
         >
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+            <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px]"></div>
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
                     <img src={ucuLogo} alt="UCU Logo" className="h-20 mx-auto mb-4" />
