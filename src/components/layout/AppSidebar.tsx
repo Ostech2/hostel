@@ -92,7 +92,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProp
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sidebar-foreground text-sm">UCU-BBUC</span>
-            <span className="text-xs text-sidebar-foreground/60">Hostel Inventory</span>
+            <span className="font-bold text-sm text-sidebar-foreground/80">Hostel Inventory</span>
           </div>
         </div>
         {isMobile && (

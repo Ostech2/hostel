@@ -59,7 +59,7 @@ export default function Auth() {
         <div className="text-center mb-8">
           <img src={ucuLogo} alt="UCU Logo" className="h-20 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground">UCU-BBUC</h1>
-          <p className="text-muted-foreground">Hostel Inventory Management System</p>
+          <p className="font-bold text-lg text-foreground mt-1">Hostel Inventory Management System</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">
