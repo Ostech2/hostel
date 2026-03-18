@@ -138,7 +138,8 @@ export function CategoryChart() {
       if (error) throw error;
       const catMap: Record<string, number> = {};
       (data || []).forEach((item) => {
-        const label = item.category.charAt(0).toUpperCase() + item.category.slice(1);
+        const category = item.category || "other";
+        const label = category.charAt(0).toUpperCase() + category.slice(1);
         catMap[label] = (catMap[label] || 0) + item.quantity;
       });
       return Object.entries(catMap).map(([name, count]) => ({ name, count }));

@@ -1,4 +1,4 @@
-import { Plus, Download, AlertTriangle, ArrowUpRight, Building2, Users, Package } from "lucide-react";
+import { Plus, Download, AlertTriangle, ArrowUpRight, Building2, Users, Package, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
