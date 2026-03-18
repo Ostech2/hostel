@@ -29,10 +29,10 @@ async function verifyAdmin(req: Request) {
     .from("user_roles")
     .select("role")
     .eq("user_id", callerUser.id)
-    .eq("role", "admin")
+    .in("role", ["admin", "warden"])
     .maybeSingle();
 
-  if (!roleData) throw new Error("Only admins can manage users");
+  if (!roleData) throw new Error("Only admins or wardens can manage users");
 
   return { adminClient, callerUser };
 }
@@ -87,7 +87,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Update profile
-      const updateData: Record<string, unknown> = {};
+      const updateData: { [key: string]: any } = {};
       if (full_name) updateData.full_name = full_name;
       if (email) updateData.email = email;
       if (gender !== undefined) updateData.gender = gender;
