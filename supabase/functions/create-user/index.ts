@@ -43,9 +43,78 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await verifyAdmin(req);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const body = await req.json();
     const { action } = body;
+
+    // Handle delete_profile separately — open to admin and warden roles
+    if (action === "delete_profile") {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "No authorization header" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user: callerUser }, error: userError } = await callerClient.auth.getUser();
+      if (userError || !callerUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: roleData } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerUser.id)
+        .in("role", ["admin", "warden"])
+        .maybeSingle();
+
+      if (!roleData) {
+        return new Response(JSON.stringify({ error: "Only admins or wardens can delete students" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { profile_id } = body;
+      if (!profile_id) {
+        return new Response(JSON.stringify({ error: "profile_id is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Delete related records first to avoid FK constraint violations
+      await adminClient.from("room_allocations").delete().eq("student_id", profile_id);
+      await adminClient.from("user_roles").delete().eq("user_id", profile_id);
+      try { await adminClient.from("activities").delete().eq("user_id", profile_id); } catch (_) { /* ignore */ }
+
+      // Delete the profile
+      const { error: deleteError } = await adminClient.from("profiles").delete().eq("id", profile_id);
+
+      if (deleteError) {
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // All other actions require admin-only access
+    const { adminClient } = await verifyAdmin(req);
 
     if (action === "update") {
       const { user_id, email, full_name, role, gender, phone, student_id } = body;
