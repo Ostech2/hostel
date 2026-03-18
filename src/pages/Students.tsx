@@ -138,6 +138,24 @@ const Students = () => {
       return;
     }
 
+    if (studentId.trim()) {
+      const { data: existingId } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("student_id", studentId.trim())
+        .maybeSingle();
+
+      if (existingId) {
+        toast({
+          title: "Error",
+          description: `Student ID '${studentId.trim()}' is already registered to another student.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       // Create a new profile for the student without an auth account
@@ -177,6 +195,25 @@ const Students = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    if (studentId.trim()) {
+      const { data: existingId } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("student_id", studentId.trim())
+        .neq("id", editingStudent.id)
+        .maybeSingle();
+
+      if (existingId) {
+        toast({
+          title: "Error",
+          description: `Student ID '${studentId.trim()}' is already registered to another student.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     setIsSubmitting(true);
