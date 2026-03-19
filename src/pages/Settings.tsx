@@ -76,6 +76,7 @@ const Settings = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   // Edit user state
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
@@ -213,6 +214,34 @@ const Settings = () => {
       });
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("create-user", {
+        body: { action: "test" },
+      });
+      
+      if (invokeError) {
+        const errorMsg = data?.error || data?.message || data?.msg || invokeError.message;
+        throw new Error(errorMsg);
+      }
+      
+      if (data?.error || data?.message || data?.msg) {
+        if (!data.success) throw new Error(data.error || data.message || data.msg);
+      }
+
+      toast({ title: "Success", description: data?.message || "Edge Function is reachable" });
+    } catch (error) {
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "Failed to connect to Edge Function",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -558,6 +587,15 @@ const Settings = () => {
                 </div>
                 <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
                   <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="gap-2 mr-2" 
+                      onClick={handleTestConnection}
+                      disabled={isTestingConnection}
+                    >
+                      {isTestingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                      Test Connection
+                    </Button>
                     <Button className="gap-2">
                       <UserPlus className="h-4 w-4" />
                       Add User
