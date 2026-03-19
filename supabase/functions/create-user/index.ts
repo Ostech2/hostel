@@ -13,20 +13,27 @@ const corsHeaders = {
 async function verifyAdmin(req: Request) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    const error = new Error("No authorization header");
-    (error as any).status = 401;
-    throw error;
+    const err = new Error("No authorization header");
+    (err as any).status = 401;
+    throw err;
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
+  // Use service role key to get user — this is more reliable in Edge Functions
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   });
 
-  const { data: { user: callerUser }, error } = await callerClient.auth.getUser();
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user: callerUser }, error } = await adminClient.auth.getUser(token);
+
   if (error || !callerUser) {
+    console.error("Auth error:", error);
     const err = new Error("Unauthorized");
     (err as any).status = 401;
     throw err;
