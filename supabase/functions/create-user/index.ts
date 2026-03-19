@@ -69,6 +69,14 @@ Deno.serve(async (req: Request) => {
 
     const { action } = body;
 
+    // Diagnostic test action
+    if (action === "test") {
+      return new Response(JSON.stringify({ success: true, message: "Edge Function is reachable" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     // Handle delete_profile separately — open to admin and warden roles
     if (action === "delete_profile") {
       const authHeader = req.headers.get("Authorization");
