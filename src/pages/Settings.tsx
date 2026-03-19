@@ -264,10 +264,11 @@ const Settings = () => {
       });
 
       if (response.error) {
-        const errorMsg = response.data?.error || response.error.message;
+        const errorMsg = response.data?.error || response.data?.message || response.data?.msg || response.error.message;
         throw new Error(errorMsg);
       }
-      if (response.data?.error) throw new Error(response.data.error);
+      const dataError = response.data?.error || response.data?.message || response.data?.msg;
+      if (dataError) throw new Error(dataError);
 
       toast({
         title: "Success",
@@ -364,10 +365,11 @@ const Settings = () => {
         });
 
         if (response.error) {
-          const errorMsg = response.data?.error || response.error.message;
+          const errorMsg = response.data?.error || response.data?.message || response.data?.msg || response.error.message;
           throw new Error(errorMsg);
         }
-        if (response.data?.error) throw new Error(response.data.error);
+        const dataError = response.data?.error || response.data?.message || response.data?.msg;
+        if (dataError) throw new Error(dataError);
       } else {
         // Only update profile if only name or gender changed locally
         const { error: profileError } = await supabase
@@ -437,10 +439,11 @@ const Settings = () => {
         });
 
         if (response.error) {
-          const errorMsg = response.data?.error || response.error.message;
+          const errorMsg = response.data?.error || response.data?.message || response.data?.msg || response.error.message;
           throw new Error(errorMsg);
         }
-        if (response.data?.error) throw new Error(response.data.error);
+        const dataError = response.data?.error || response.data?.message || response.data?.msg;
+        if (dataError) throw new Error(dataError);
       } else {
         // Fallback: Delete profile directly if no user_id (unlinked profile)
         const { error: profileError } = await supabase
