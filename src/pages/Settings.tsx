@@ -581,7 +581,7 @@ const Settings = () => {
                     <Users className="h-5 w-5" />
                   </div>
                   <div>
-                    <CardTitle>User Management</CardTitle>
+                    <CardTitle>User Management (v2.1)</CardTitle>
                     <CardDescription>Create and manage system users</CardDescription>
                   </div>
                 </div>
