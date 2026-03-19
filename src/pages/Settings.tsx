@@ -586,21 +586,22 @@ const Settings = () => {
                   </div>
                 </div>
                 <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-                  <DialogTrigger asChild>
+                  <div className="flex items-center gap-2">
                     <Button 
                       variant="outline" 
-                      className="gap-2 mr-2" 
+                      className="gap-2" 
                       onClick={handleTestConnection}
                       disabled={isTestingConnection}
                     >
                       {isTestingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
                       Test Connection
                     </Button>
-                    <Button className="gap-2">
+                    <DialogTrigger asChild>
+                      <Button className="gap-2">
                       <UserPlus className="h-4 w-4" />
                       Add User
                     </Button>
-                  </DialogTrigger>
+                  </DialogTrigger></div>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                       <DialogTitle>Create New User</DialogTitle>
