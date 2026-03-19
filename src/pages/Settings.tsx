@@ -263,7 +263,10 @@ const Settings = () => {
         },
       });
 
-      if (response.error) throw new Error(response.error.message);
+      if (response.error) {
+        const errorMsg = response.data?.error || response.error.message;
+        throw new Error(errorMsg);
+      }
       if (response.data?.error) throw new Error(response.data.error);
 
       toast({
@@ -360,7 +363,10 @@ const Settings = () => {
           },
         });
 
-        if (response.error) throw new Error(response.error.message);
+        if (response.error) {
+          const errorMsg = response.data?.error || response.error.message;
+          throw new Error(errorMsg);
+        }
         if (response.data?.error) throw new Error(response.data.error);
       } else {
         // Only update profile if only name or gender changed locally
@@ -430,7 +436,10 @@ const Settings = () => {
           },
         });
 
-        if (response.error) throw new Error(response.error.message);
+        if (response.error) {
+          const errorMsg = response.data?.error || response.error.message;
+          throw new Error(errorMsg);
+        }
         if (response.data?.error) throw new Error(response.data.error);
       } else {
         // Fallback: Delete profile directly if no user_id (unlinked profile)

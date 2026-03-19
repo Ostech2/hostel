@@ -12,7 +12,11 @@ const corsHeaders = {
 
 async function verifyAdmin(req: Request) {
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) throw new Error("No authorization header");
+  if (!authHeader) {
+    const error = new Error("No authorization header");
+    (error as any).status = 401;
+    throw error;
+  }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,7 +26,11 @@ async function verifyAdmin(req: Request) {
   });
 
   const { data: { user: callerUser }, error } = await callerClient.auth.getUser();
-  if (error || !callerUser) throw new Error("Unauthorized");
+  if (error || !callerUser) {
+    const err = new Error("Unauthorized");
+    (err as any).status = 401;
+    throw err;
+  }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
   const { data: roleData } = await adminClient
@@ -32,7 +40,11 @@ async function verifyAdmin(req: Request) {
     .in("role", ["admin", "warden"])
     .maybeSingle();
 
-  if (!roleData) throw new Error("Only admins or wardens can manage users");
+  if (!roleData) {
+    const err = new Error("Only admins or wardens can manage users");
+    (err as any).status = 403;
+    throw err;
+  }
 
   return { adminClient, callerUser };
 }
@@ -344,8 +356,13 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Internal Server Error" }), {
-      status: 500,
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    const status = (error as any)?.status || 500;
+    
+    console.error(`Error [${status}]: ${message}`);
+    
+    return new Response(JSON.stringify({ error: message }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
