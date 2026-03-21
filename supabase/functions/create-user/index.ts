@@ -22,7 +22,7 @@ async function verifyAdmin(req: Request) {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   // Use service role key to get user — this is more reliable in Edge Functions
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  const adminAuthClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
@@ -30,7 +30,7 @@ async function verifyAdmin(req: Request) {
   });
 
   const token = authHeader.replace('Bearer ', '');
-  const { data: { user: callerUser }, error } = await adminClient.auth.getUser(token);
+  const { data: { user: callerUser }, error } = await adminAuthClient.auth.getUser(token);
 
   if (error || !callerUser) {
     console.error("Auth error:", error);
@@ -39,8 +39,8 @@ async function verifyAdmin(req: Request) {
     throw err;
   }
 
-  const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const { data: roleData } = await adminClient
+  const adminDbClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: roleData } = await adminDbClient
     .from("user_roles")
     .select("role")
     .eq("user_id", callerUser.id)
@@ -53,7 +53,7 @@ async function verifyAdmin(req: Request) {
     throw err;
   }
 
-  return { adminClient, callerUser };
+  return { adminClient: adminDbClient, callerUser };
 }
 
 Deno.serve(async (req: Request) => {
